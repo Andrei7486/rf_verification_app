@@ -1,0 +1,5 @@
+# RF Verification App - Python dependencies.
+# Flask is required. pyserial is only needed if you use the serial (COM) modulator path;
+# telnet mode needs nothing beyond the standard library.
+Flask>=2.2
+pyserial>=3.5

@@ -1,0 +1,75 @@
+{
+  "analyzer": {
+    "apply_ext_gain": false,
+    "cxa_ip": "192.168.0.5",
+    "cxa_scpi_port": 5025,
+    "cxa_web_password": "measure4u",
+    "ext_gain_db": 0,
+    "ext_gain_scpi": ":CORR:SA:GAIN {db}",
+    "max_peaks": 30,
+    "peak_excursion_db": 6,
+    "peak_threshold_dbm": -90,
+    "scpi_prompt": "SCPI>",
+    "scpi_timeout_s": 15
+  },
+  "flatness": {
+    "dwell_s": 0.6,
+    "flat_band_start_mhz": 950,
+    "flat_band_stop_mhz": 2150,
+    "flat_step_mhz": 50,
+    "flat_power_dbm": -2,
+    "flat_tolerance_db": 1,
+    "lband_atten_db": 3,
+    "ref_level_dbm": 5,
+    "res_bw_hz": 3000000,
+    "scale_div_db": 2,
+    "span_margin_mhz": 30,
+    "video_bw_hz": 10000
+  },
+  "general": {
+    "default_unit": "NS330",
+    "log_dir": "results",
+    "restart_maxhold_on_start": true,
+    "verification_mode": "manual"
+  },
+  "iq_validation": {
+    "dwell_s": 1,
+    "iq_dac_freq_hz": 1000000,
+    "iq_dac_i": "1f9",
+    "iq_dac_q": "1f9",
+    "iq_power_dbm": -2,
+    "iq_spur_limit_dbc": -55,
+    "loft_offset_hz": 0,
+    "ref_level_dbm": 0,
+    "res_bw_hz": 30000,
+    "span_hz": 2500000,
+    "video_bw_hz": 3000
+  },
+  "modulator": {
+    "cmd_delay_s": 0.4,
+    "connect_timeout_s": 10,
+    "dut_baud": 115200,
+    "dut_com_port": "COM16",
+    "dut_conn_type": "telnet",
+    "dut_ip": "192.168.0.50",
+    "dut_password": "novelsat",
+    "dut_telnet_port": 23,
+    "dut_user": "admin"
+  },
+  "power_accuracy": {
+    "chp_integ_bw_hz": 5000000,
+    "dwell_s": 0.3,
+    "if_atten_db": 5.7,
+    "if_max_mhz": 180,
+    "lband_atten_db": 3,
+    "pwr_start_dbm": 0,
+    "pwr_step_db": 5,
+    "pwr_stop_dbm": -30,
+    "pwr_tolerance_db": 0.8,
+    "ref_level_dbm": 0,
+    "res_bw_hz": 41000,
+    "span_hz": 8000000,
+    "sweep_time_s": 0.04,
+    "video_bw_hz": 1000
+  }
+}

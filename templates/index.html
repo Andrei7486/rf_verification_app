@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RF Verification</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header>
+    <div class="comb"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div>
+      <div class="brand">BELSYSTEM</div>
+      <div class="sub">Designed for A Y E C K A</div>
+      <div class="sub">Flatness &middot; Power accuracy &middot; IQ validation</div>
+    </div>
+    <nav>
+      <a href="/">Run</a>
+      <a href="/settings">Settings</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel" id="setupPanel">
+      <h2>New verification</h2>
+      <div class="row">
+        <div class="field">
+          <label for="checkSel">Check</label>
+          <select id="checkSel">
+            <option value="flatness">Flatness</option>
+            <option value="power_accuracy">Power accuracy</option>
+            <option value="iq_validation">IQ validation</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="unitSel">Unit</label>
+          <select id="unitSel"></select>
+        </div>
+        <div class="field">
+          <label for="modeSel">Mode</label>
+          <select id="modeSel">
+            <option value="auto">Auto (runs by itself)</option>
+            <option value="manual">Manual (operator reads CXA)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field" id="freqListWrap" style="margin-top:16px;">
+        <label>Frequencies (MHz) &mdash; untick any you want to skip</label>
+        <div class="checkboxes" id="freqBoxes"></div>
+        <div class="btns">
+          <button class="ghost" type="button" id="selAll">Select all</button>
+          <button class="ghost" type="button" id="selNone">Select none</button>
+        </div>
+      </div>
+      <div class="hint hidden" id="flatNote">
+        Flatness uses fixed frequencies 950&ndash;2150 MHz (50 MHz step) for every unit.
+      </div>
+
+      <div class="btns" style="margin-top:18px;">
+        <button class="primary" id="startBtn">Start run</button>
+      </div>
+      <div class="error" id="setupErr"></div>
+    </section>
+
+    <section class="panel hidden" id="runPanel">
+      <h2 id="runTitle">Run</h2>
+      <div class="readout" id="pointReadout"></div>
+
+      <div class="cable hidden" id="cableBox">
+        <div class="cable-msg" id="cableMsg"></div>
+        <button class="primary" id="continueBtn">Continue</button>
+      </div>
+
+      <div class="row" id="manualInputs"></div>
+      <div class="btns" id="manualBtns">
+        <button class="cyan" id="measureBtn">Measure</button>
+        <button id="nextBtn" disabled>Next</button>
+        <button class="ghost" id="skipBtn">Skip</button>
+      </div>
+
+      <div class="btns" style="margin-top:4px;">
+        <button class="danger" id="stopBtn">Stop &amp; finish</button>
+      </div>
+      <div class="hint" id="modeHint"></div>
+      <div class="error" id="runErr"></div>
+
+      <div style="margin-top:16px;">
+        <label class="loglabel">Live log</label>
+        <pre class="logview" id="logView"></pre>
+      </div>
+    </section>
+
+    <section class="panel hidden" id="resultsPanel">
+      <h2>Results</h2>
+      <div id="verdictBox"></div>
+      <div style="overflow-x:auto;">
+        <table id="resultsTable">
+          <thead><tr id="resHead"></tr></thead>
+          <tbody id="resBody"></tbody>
+        </table>
+      </div>
+      <div class="hint" id="filesHint"></div>
+      <div class="btns" style="margin-top:14px;">
+        <button class="primary" id="newRunBtn">New run</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

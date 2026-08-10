@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RF Verification &middot; Settings</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header>
+    <div class="comb"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div>
+      <div class="brand">BELSYSTEM</div>
+      <div class="sub">Settings &amp; configuration</div>
+    </div>
+    <nav>
+      <a href="/">Run</a>
+      <a href="/settings">Settings</a>
+    </nav>
+  </header>
+
+  <div class="savebar">
+    <div class="savebar-inner">
+      <span>Configuration</span>
+      <button class="primary" id="saveCfg">Save configuration</button>
+      <span class="savemsg" id="cfgMsg"></span>
+    </div>
+  </div>
+
+  <main>
+    <section class="panel">
+      <div class="hint">Click a section to expand it. Changes apply to the next run.</div>
+      <div id="cfgGroups" style="margin-top:12px;"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Frequency lists</h2>
+      <div class="row">
+        <div class="field" style="max-width:240px;">
+          <label for="unitSel">Unit</label>
+          <select id="unitSel"></select>
+        </div>
+      </div>
+      <div class="field" style="margin-top:12px;">
+        <label for="freqText">List (one MHz per line; '#' lines are comments)</label>
+        <textarea id="freqText" rows="12"></textarea>
+      </div>
+      <div class="btns">
+        <button class="primary" id="saveFreq">Save frequency list</button>
+      </div>
+      <div class="error" id="freqMsg"></div>
+      <div class="hint">Flatness ignores these lists (fixed 950&ndash;2150/50). Used by Power accuracy &amp; IQ.</div>
+    </section>
+  </main>
+
+  <script src="/static/js/settings.js"></script>
+</body>
+</html>
