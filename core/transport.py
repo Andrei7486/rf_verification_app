@@ -47,7 +47,7 @@ class LineSocket:
         except OSError as exc:
             raise TransportError("Send failed: %s" % exc)
 
-    def read_until(self, patterns, timeout=None):
+    def read_until(self, patterns, timeout=None, require=False):
         """Read until any string in 'patterns' appears, or 'timeout' elapses.
 
         Returns everything read so far (even on timeout) so the caller can inspect
@@ -73,6 +73,11 @@ class LineSocket:
             buf += chunk.decode("ascii", errors="ignore")
             if any(p in buf for p in patterns):
                 return buf
+        # Deadline reached without seeing any expected pattern.
+        if require:
+            raise TransportError(
+                "Timeout: expected %r, got %r" % (patterns, buf[-120:])
+            )
         return buf
 
     def drain(self, wait=0.3):

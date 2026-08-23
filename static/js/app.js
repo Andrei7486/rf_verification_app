@@ -202,6 +202,9 @@ function renderResults(res) {
     detail = "pk-pk " + s.pk_pk_db + " dB (limit " + s.tolerance_db + " dB), max " + s.max_dbm + " / min " + s.min_dbm + " dBm";
   else if (s.tolerance_db !== undefined)
     detail = "tolerance \u00b1" + s.tolerance_db + " dB over " + (s.steps || "") + " steps";
+  else if (s.loft_limit_dbc !== undefined)
+    detail = "LOFT \u2264 " + s.loft_limit_dbc + " dBc, Image \u2264 " + s.image_limit_dbc +
+             " dBc over " + (s.points || "") + " points";
   else if (s.spur_limit_dbc !== undefined)
     detail = "limit " + s.spur_limit_dbc + " dBc over " + (s.points || "") + " points";
   const box = $("verdictBox");
