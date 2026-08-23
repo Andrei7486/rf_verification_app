@@ -67,6 +67,14 @@
       <h2 id="runTitle">Run</h2>
       <div class="readout" id="pointReadout"></div>
 
+      <div class="fails hidden" id="failBox">
+        <div class="fails-head">
+          <span class="fails-count" id="failCount">FAIL: 0</span>
+          <span class="fails-note" id="failNote">failing points appear here as they are measured</span>
+        </div>
+        <div class="fails-list" id="failList"></div>
+      </div>
+
       <div class="cable hidden" id="cableBox">
         <div class="cable-msg" id="cableMsg"></div>
         <button class="primary" id="continueBtn">Continue</button>
@@ -94,6 +102,13 @@
     <section class="panel hidden" id="resultsPanel">
       <h2>Results</h2>
       <div id="verdictBox"></div>
+      <div class="fails hidden" id="failReport">
+        <div class="fails-head">
+          <span class="fails-count" id="failReportCount"></span>
+          <span class="fails-note">full list below</span>
+        </div>
+        <div class="fails-list" id="failReportList"></div>
+      </div>
       <div style="overflow-x:auto;">
         <table id="resultsTable">
           <thead><tr id="resHead"></tr></thead>
