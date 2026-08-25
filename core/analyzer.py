@@ -74,6 +74,12 @@ class Analyzer:
         self.command_sync(scpi)
     def set_sweep_time(self, seconds):
         self.command_sync(":SWE:TIME %s" % seconds)
+    def get_sweep_time(self):
+        """Read back the (possibly auto-coupled) sweep time actually in effect, in seconds."""
+        return self.query_number(":SWE:TIME?")
+    def get_peak_table(self):
+        """Read back the on-screen peak table contents (diagnostic only, comma-separated)."""
+        return self.query(":CALC:MARK:PEAK:TABL?")
     def set_attenuation(self, db):
         self.command_sync(":POW:ATT:AUTO OFF")
         self.command_sync(":POW:ATT %s" % db)

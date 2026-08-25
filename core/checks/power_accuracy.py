@@ -10,10 +10,10 @@ class PowerAccuracyCheck:
     def _levels(self, pa):
         start = float(pa["pwr_start_dbm"]); stop = float(pa["pwr_stop_dbm"])
         step = abs(float(pa["pwr_step_db"])) or 1.0
-        levels, p = [], start
-        while p >= stop - 1e-9:
-            levels.append(round(p, 3)); p -= step
-        return levels
+        # start - i*step (not a -= accumulator) so float error can't drift the grid
+        # over a long run - each level is computed fresh from start, never chained.
+        n = max(1, int(round((start - stop) / step)) + 1)
+        return [round(start - i * step, 3) for i in range(n)]
     def build_points(self, cfg, freqs, params):
         pa = cfg["power_accuracy"]; levels = self._levels(pa)
         freqs = sorted(float(f) for f in freqs)
