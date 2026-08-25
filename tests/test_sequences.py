@@ -69,8 +69,11 @@ class FakeAnalyzer:
     def set_ref_level(self, v): self._rec("set_ref_level", v)
     def set_scale_div(self, v): self._rec("set_scale_div", v)
     def set_center_span(self, c, s): self._rec("set_center_span", c, s)
+    def set_center_freq(self, c): self._rec("set_center_freq", c)
     def set_start_stop(self, a, b): self._rec("set_start_stop", a, b)
     def set_bw(self, r, v): self._rec("set_bw", r, v)
+    def set_chp_span(self, s): self._rec("set_chp_span", s)
+    def set_chp_bw(self, r, v): self._rec("set_chp_bw", r, v)
     def set_sweep_time(self, s): self._rec("set_sweep_time", s)
     def get_sweep_time(self): self._rec("get_sweep_time"); return self._sweep_time_s
     def get_peak_table(self):
@@ -196,6 +199,28 @@ def test_power_levels():
           % (n, pa["pwr_start_dbm"], pa["pwr_stop_dbm"], step))
 
 
+def test_power_chp_scoped_nodes():
+    """Stage 1 parity: power_accuracy must use the CHP-scoped span/RBW/VBW nodes, not the
+    generic ones the swept-SA checks (flatness/iq_validation) use - the Channel Power
+    measurement keeps its own copy of these, so the generic nodes are silently ignored
+    while :CONF:CHP is active. Regression guard for that exact bug.
+    """
+    cfg = load_cfg(); chk = get_check("power_accuracy")()
+    pa = cfg["power_accuracy"]
+    fa = FakeAnalyzer()
+    chk.analyzer_setup(fa, cfg, [{"index": 0, "freq_mhz": 950.0}])
+    assert ("set_chp_span", (pa["span_hz"],)) in fa.calls, fa.calls
+    assert ("set_chp_bw", (pa["res_bw_hz"], pa["video_bw_hz"])) in fa.calls, fa.calls
+    assert not any(c[0] in ("set_bw", "set_center_span") for c in fa.calls), fa.calls
+
+    fa2 = FakeAnalyzer()
+    chk.prepare_point(FakeModulator(), fa2, cfg, {"index": 0, "freq_mhz": 950.0, "set_dbm": 0})
+    assert ("set_center_freq", (950.0 * 1e6,)) in fa2.calls, fa2.calls
+    assert not any(c[0] in ("set_bw", "set_center_span") for c in fa2.calls), fa2.calls
+    print("power: CHP-scoped nodes OK (set_chp_span/set_chp_bw/set_center_freq used, "
+          "generic set_bw/set_center_span not called)")
+
+
 def test_power_atten_and_points():
     cfg = load_cfg(); chk = get_check("power_accuracy")()
     pa = cfg["power_accuracy"]
@@ -246,6 +271,7 @@ if __name__ == "__main__":
     test_flatness_prepare_error_isolation()
     test_flatness_peak_table_gate()
     test_power_levels()
+    test_power_chp_scoped_nodes()
     test_power_atten_and_points()
     test_iq_analyzer_setup()
     test_iq_marker_delta_sequence()

@@ -54,12 +54,40 @@ class Analyzer:
     def set_center_span(self, center_hz, span_hz):
         self.command(":FREQ:CENT %d" % int(center_hz))
         self.command_sync(":FREQ:SPAN %d" % int(span_hz))
+    def set_center_freq(self, center_hz):
+        """Center frequency only, no span (:FREQ:CENT) - for a check whose span lives in a
+        measurement-scoped node instead (e.g. power_accuracy.py's :CHP:FREQ:SPAN, set once
+        in analyzer_setup() via set_chp_span() rather than re-sent every point).
+        """
+        self.command(":FREQ:CENT %d" % int(center_hz))
     def set_start_stop(self, start_hz, stop_hz):
         self.command(":FREQ:STAR %d" % int(start_hz))
         self.command_sync(":FREQ:STOP %d" % int(stop_hz))
     def set_bw(self, rbw_hz, vbw_hz):
         self.command_sync(":BWID %d" % int(rbw_hz))
         self.command_sync(":BWID:VID %d" % int(vbw_hz))
+    def set_chp_span(self, span_hz):
+        """Channel Power measurement span (:CHP:FREQ:SPAN) - NOT the generic :FREQ:SPAN.
+
+        The X-Series Channel Power measurement keeps its own copy of span/RBW/VBW,
+        separate from the Spectrum measurement's generic nodes used by set_center_span()/
+        set_bw() below. Writing the generic nodes while :CONF:CHP is active does not
+        reach the Channel Power measurement's actual sweep parameters - use this
+        instead for any check running in CHP mode (power_accuracy.py).
+        """
+        self.command_sync(":CHP:FREQ:SPAN %d" % int(span_hz))
+    def set_chp_bw(self, rbw_hz, vbw_hz):
+        """Channel Power RBW/VBW (:CHP:BAND / :CHP:BAND:VID) - NOT the generic :BWID nodes.
+
+        Sends the AUTO-then-explicit pair for each, matching the legacy validation-tool
+        sequence verbatim (CHP:BAND:AUTO ON / CHP:BAND, then CHP:BAND:VID:AUTO ON /
+        CHP:BAND:VID) rather than resolving which one "wins" - see set_chp_span() for why
+        the generic set_bw() does not apply here.
+        """
+        self.command_sync(":CHP:BAND:AUTO ON")
+        self.command_sync(":CHP:BAND %d" % int(rbw_hz))
+        self.command_sync(":CHP:BAND:VID:AUTO ON")
+        self.command_sync(":CHP:BAND:VID %d" % int(vbw_hz))
     def set_detector_peak(self):
         self.command(":DET:TRACE1 POS")
     def set_max_hold(self):

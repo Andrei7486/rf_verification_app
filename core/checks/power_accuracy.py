@@ -38,10 +38,16 @@ class PowerAccuracyCheck:
         cxa.command(":CHP:SWE:TIME %s" % pa["sweep_time_s"])
         cxa.apply_ext_gain()
         cxa.set_ref_level(pa["ref_level_dbm"])
-        cxa.set_bw(pa["res_bw_hz"], pa["video_bw_hz"])
+        # CHP-scoped span/RBW/VBW, not the generic :FREQ:SPAN/:BWID/:BWID:VID nodes - the
+        # Channel Power measurement keeps its own copy of these, separate from the Spectrum
+        # measurement's state that the generic setters (used by flatness/iq_validation) write
+        # to. Span is constant for the whole run, so it's set once here rather than resent
+        # every point (see prepare_point()'s set_center_freq()).
+        cxa.set_chp_span(pa["span_hz"])
+        cxa.set_chp_bw(pa["res_bw_hz"], pa["video_bw_hz"])
     def prepare_point(self, mod, cxa, cfg, point):
         pa = cfg["power_accuracy"]
-        cxa.set_center_span(point["freq_mhz"] * 1e6, pa["span_hz"])
+        cxa.set_center_freq(point["freq_mhz"] * 1e6)
         mod.send("freq %s" % point["freq_mhz"])
         mod.send("power %s" % point["set_dbm"], wait=pa["dwell_s"])
     def _atten(self, pa, freq_mhz):
