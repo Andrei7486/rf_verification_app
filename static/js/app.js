@@ -14,6 +14,35 @@ async function getJSON(url) {
 }
 const $ = (id) => document.getElementById(id);
 let RUN = null, POLL = null, LOG_SEQ = 0;
+// Rows measured in manual mode; auto mode reads them back from /api/run/status.
+let MANUAL_ROWS = [];
+const LIVE_FAILS = { box: "failBox", count: "failCount", list: "failList" };
+const REPORT_FAILS = { box: "failReport", count: "failReportCount", list: "failReportList" };
+
+function failItem(columns, row) {
+  const div = document.createElement("div"); div.className = "fail-item";
+  const head = document.createElement("span"); head.className = "f";
+  head.textContent = (row.Frequency_MHz === undefined || row.Frequency_MHz === "")
+    ? "point" : row.Frequency_MHz + " MHz";
+  div.appendChild(head);
+  const rest = columns
+    .filter((c) => c !== "Frequency_MHz" && c !== "Result")
+    .filter((c) => row[c] !== undefined && row[c] !== "")
+    .map((c) => c.replace(/_/g, " ") + " " + row[c]);
+  div.appendChild(document.createTextNode("   " + rest.join("   ")));
+  return div;
+}
+// Shows every FAIL point - live while the run goes on, and as the report afterwards.
+function renderFails(columns, rows, ids, prefix, live) {
+  const box = $(ids.box), list = $(ids.list);
+  const fails = (rows || []).filter((r) => r.Result === "FAIL");
+  $(ids.count).textContent = prefix + fails.length;
+  list.innerHTML = "";
+  if (!fails.length) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  fails.forEach((r) => list.appendChild(failItem(columns || [], r)));
+  if (live) list.scrollTop = list.scrollHeight;
+}
 
 async function loadUnits() {
   const { units } = await getJSON("/api/units");
@@ -59,6 +88,9 @@ function enterRunUi(info) {
   $("runTitle").textContent = info.title + "  \u2014  " + info.unit;
   $("verdictBox").innerHTML = ""; $("filesHint").textContent = "";
   $("logView").textContent = ""; LOG_SEQ = 0;
+  MANUAL_ROWS = [];
+  renderFails(info.columns, [], LIVE_FAILS, "FAIL: ", false);
+  renderFails(info.columns, [], REPORT_FAILS, "FAILING POINTS: ", false);
   const head = $("resHead"); head.innerHTML = "";
   info.columns.forEach((c) => { const th = document.createElement("th"); th.textContent = c; head.appendChild(th); });
   $("resBody").innerHTML = "";
@@ -138,6 +170,9 @@ async function measure() {
       tr.appendChild(td);
     });
     $("resBody").appendChild(tr);
+    const key = (r) => String(r.Frequency_MHz) + "|" + String(r.Set_dBm);
+    MANUAL_ROWS = MANUAL_ROWS.filter((r) => key(r) !== key(res.row)).concat([res.row]);
+    renderFails(RUN.columns, MANUAL_ROWS, LIVE_FAILS, "FAIL: ", true);
     $("nextBtn").disabled = !res.has_next;
     if (!res.has_next) $("modeHint").textContent = "Last point measured \u2014 press Stop & finish.";
   } catch (e) { $("runErr").textContent = e.message; }
@@ -168,6 +203,7 @@ async function pollOnce() {
     if (s.idle) return;
     fillTable(s.columns, s.rows, s.flags);
     renderProgress(s.idx, s.total);
+    renderFails(s.columns, s.rows, LIVE_FAILS, "FAIL: ", true);
     if (s.paused) { $("cableMsg").textContent = s.pause_msg; $("cableBox").classList.remove("hidden"); }
     else { $("cableBox").classList.add("hidden"); }
     if (s.finished) {
@@ -196,12 +232,16 @@ function renderResults(res) {
   const head = $("resHead"); head.innerHTML = "";
   res.columns.forEach((c) => { const th = document.createElement("th"); th.textContent = c; head.appendChild(th); });
   fillTable(res.columns, res.rows, res.flags);
+  renderFails(res.columns, res.rows, REPORT_FAILS, "FAILING POINTS: ", false);
   const v = res.verdict || "N/A", s = res.summary || {};
   let detail = "";
   if (s.pk_pk_db !== undefined)
     detail = "pk-pk " + s.pk_pk_db + " dB (limit " + s.tolerance_db + " dB), max " + s.max_dbm + " / min " + s.min_dbm + " dBm";
   else if (s.tolerance_db !== undefined)
     detail = "tolerance \u00b1" + s.tolerance_db + " dB over " + (s.steps || "") + " steps";
+  else if (s.loft_limit_dbc !== undefined)
+    detail = "LOFT \u2264 " + s.loft_limit_dbc + " dBc, Image \u2264 " + s.image_limit_dbc +
+             " dBc over " + (s.points || "") + " points";
   else if (s.spur_limit_dbc !== undefined)
     detail = "limit " + s.spur_limit_dbc + " dBc over " + (s.points || "") + " points";
   const box = $("verdictBox");
@@ -211,6 +251,7 @@ function renderResults(res) {
 }
 function newRun() {
   stopPolling();
+  $("failBox").classList.add("hidden"); $("failReport").classList.add("hidden");
   $("resultsPanel").classList.add("hidden");
   $("setupPanel").classList.remove("hidden");
   $("setupErr").textContent = "";
