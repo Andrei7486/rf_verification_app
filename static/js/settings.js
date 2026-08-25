@@ -7,6 +7,8 @@ const SECTION_TITLES = {
 const ENUMS = {
   "modulator.dut_conn_type": ["telnet", "serial"],
   "general.verification_mode": ["auto", "manual"],
+  "iq_validation.main_cw_low_action": ["fail", "abort"],
+  "iq_validation.peak_frequency_mismatch_action": ["warning", "fail"],
 };
 let CONFIG = null;
 async function getJSON(url) { const r = await fetch(url); const d = await r.json(); if (!r.ok) throw new Error(d.error || ("HTTP " + r.status)); return d; }

@@ -186,10 +186,14 @@ def test_power_levels():
     pa = cfg["power_accuracy"]
     levels = chk._levels(pa)
     step = abs(pa["pwr_step_db"])
-    assert len(levels) == 16, levels
+    # Derived from config, not hardcoded - the step/range are tunable and must not
+    # silently drift the test out of sync with whatever config.json actually ships.
+    n = int(round((pa["pwr_start_dbm"] - pa["pwr_stop_dbm"]) / step)) + 1
+    assert len(levels) == n, levels
     assert levels[0] == pa["pwr_start_dbm"] and levels[-1] == pa["pwr_stop_dbm"], levels
-    assert levels == [round(pa["pwr_start_dbm"] - i * step, 3) for i in range(16)], levels
-    print("power: _levels OK (16 steps, 0..-30/2, no drift)")
+    assert levels == [round(pa["pwr_start_dbm"] - i * step, 3) for i in range(n)], levels
+    print("power: _levels OK (%d steps, %s..%s/%s, no drift)"
+          % (n, pa["pwr_start_dbm"], pa["pwr_stop_dbm"], step))
 
 
 def test_power_atten_and_points():
