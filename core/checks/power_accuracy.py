@@ -1,4 +1,5 @@
 """Check 2 - Power accuracy (multi-frequency; attenuator compensation; CHP)."""
+import time
 from . import base
 class PowerAccuracyCheck:
     key = "power_accuracy"
@@ -7,6 +8,11 @@ class PowerAccuracyCheck:
     uses_freq_list = True
     manual_fields = [{"name": "measured_dbm", "label": "Measured level (dBm)", "step": "0.01"}]
     csv_columns = ["Frequency_MHz", "Set_dBm", "Actual_dBm", "Deviation_dB", "Result"]
+    def __init__(self):
+        # Actual (possibly auto-coupled) CHP sweep time, queried once in analyzer_setup()
+        # and used by _read_chp_with_retry() to size the settle wait after each
+        # :INIT:REST - same "query, don't assume" pattern as flatness.py's sweep-time fix.
+        self._chp_sweep_time_s = None
     def _levels(self, pa):
         start = float(pa["pwr_start_dbm"]); stop = float(pa["pwr_stop_dbm"])
         step = abs(float(pa["pwr_step_db"])) or 1.0
@@ -34,8 +40,16 @@ class PowerAccuracyCheck:
         cxa.preset()
         cxa.command(":CONF:CHP")
         cxa.command(":CHP:BAND:INT %d" % int(pa["chp_integ_bw_hz"]))
-        cxa.command(":CHP:SWE:TIME:AUTO OFF")
-        cxa.command(":CHP:SWE:TIME %s" % pa["sweep_time_s"])
+        # Sweep time left on AUTO (queried below) and averaging enabled, mirroring legacy
+        # InitValidation() - stage 2 of the parity plan. chp_sweep_time_auto=false falls
+        # back to the old forced-value behaviour for anyone who needs it.
+        if bool(pa.get("chp_sweep_time_auto", True)):
+            cxa.set_chp_sweep_time_auto(True)
+        else:
+            cxa.set_chp_sweep_time_auto(False)
+            cxa.command_sync(":CHP:SWE:TIME %s" % pa["sweep_time_s"])
+        cxa.set_chp_average(bool(pa.get("chp_average_on", True)),
+                            int(pa.get("chp_average_count", 10)))
         cxa.apply_ext_gain()
         cxa.set_ref_level(pa["ref_level_dbm"])
         # CHP-scoped span/RBW/VBW, not the generic :FREQ:SPAN/:BWID/:BWID:VID nodes - the
@@ -45,6 +59,17 @@ class PowerAccuracyCheck:
         # every point (see prepare_point()'s set_center_freq()).
         cxa.set_chp_span(pa["span_hz"])
         cxa.set_chp_bw(pa["res_bw_hz"], pa["video_bw_hz"])
+        # Query the actual (possibly auto-coupled) CHP sweep time so _read_chp_with_retry()
+        # can size the settle wait after each :INIT:REST. A read failure must never break
+        # the run - falls back to no settle wait (pre-Stage-2 behaviour).
+        try:
+            self._chp_sweep_time_s = cxa.get_chp_sweep_time()
+            cxa.log.info("Power accuracy: CHP sweep time = %.4f s (average count %d)",
+                         self._chp_sweep_time_s, int(pa.get("chp_average_count", 10)))
+        except Exception as exc:
+            self._chp_sweep_time_s = None
+            cxa.log.warning("Power accuracy: could not read CHP sweep time (%s); "
+                            "settle wait before each read is skipped", exc)
     def prepare_point(self, mod, cxa, cfg, point):
         pa = cfg["power_accuracy"]
         cxa.set_center_freq(point["freq_mhz"] * 1e6)
@@ -54,16 +79,45 @@ class PowerAccuracyCheck:
         if freq_mhz <= float(pa.get("if_max_mhz", 180)):
             return float(pa.get("if_atten_db", 0))
         return float(pa.get("lband_atten_db", 0))
+    def _read_chp_with_retry(self, cxa, pa):
+        """Restart the CHP sweep/average cycle, settle, then read.
+
+        Mirrors legacy's INIT:REST + computed wait + retry-on-failure pattern. A
+        transport/SCPI exception (not a value-sanity check - accepted decision) triggers
+        a retry, capped at chp_read_retries. Returns (level, None) on success or
+        (None, error_message) after retries are exhausted, so the caller can turn a
+        persistent failure into a FAIL point instead of aborting the whole run - same
+        per-point isolation pattern flatness.py/iq_validation.py already use.
+        """
+        retries = max(1, int(pa.get("chp_read_retries", 1)))
+        settle = self._chp_sweep_time_s
+        margin = float(pa.get("chp_settle_margin", 1.1))
+        last_exc = None
+        for attempt in range(1, retries + 1):
+            try:
+                cxa.chp_restart()
+                if settle:
+                    time.sleep(settle * margin)
+                return cxa.read_chp(), None
+            except Exception as exc:  # transport/SCPI failure only, not a value check
+                last_exc = exc
+                cxa.log.warning("Power accuracy: CHP read failed (attempt %d/%d): %s",
+                                attempt, retries, exc)
+        return None, str(last_exc)
     def measure_point(self, cxa, cfg, point, mode, manual):
         pa = cfg["power_accuracy"]
         if mode == "auto":
-            level = cxa.read_chp()
+            level, err = self._read_chp_with_retry(cxa, pa)
+            if err is not None:
+                return {"error": err}
         else:
             level = float(manual["measured_dbm"])
         level = round(level + self._atten(pa, point["freq_mhz"]), 2)
         deviation = round(level - point["set_dbm"], 2)
         return {"measured_dbm": level, "deviation_db": deviation}
     def evaluate_point(self, cfg, point, meas):
+        if meas.get("error"):
+            return {"result": "FAIL", "flag": True, "note": meas["error"]}
         tol = float(cfg["power_accuracy"]["pwr_tolerance_db"])
         passed = abs(meas["deviation_db"]) <= tol
         return {"result": "PASS" if passed else "FAIL", "flag": not passed}

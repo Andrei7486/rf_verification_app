@@ -88,6 +88,33 @@ class Analyzer:
         self.command_sync(":CHP:BAND %d" % int(rbw_hz))
         self.command_sync(":CHP:BAND:VID:AUTO ON")
         self.command_sync(":CHP:BAND:VID %d" % int(vbw_hz))
+    def set_chp_sweep_time_auto(self, on=True):
+        """Channel Power sweep time coupling (:CHP:SWE:TIME:AUTO) - CHP-scoped, like
+        set_chp_span()/set_chp_bw() above; not the generic :SWE:TIME:AUTO."""
+        self.command_sync(":CHP:SWE:TIME:AUTO %s" % ("ON" if on else "OFF"))
+    def get_chp_sweep_time(self):
+        """Read back the actual (possibly auto-coupled) Channel Power sweep time, seconds."""
+        return self.query_number(":CHP:SWE:TIME?")
+    def set_chp_average(self, on, count):
+        """Channel Power averaging (:CHP:AVER:COUN / :CHP:AVER).
+
+        Legacy's decompiled sequence also has a bare 'CHP:AVER 10' line ahead of these
+        two; that reads as either a stray duplicate of :CHP:AVER:COUN or a decompilation
+        artifact (CHP:AVER is documented as a boolean node, and '10' is not a valid
+        SCPI boolean) - sending a fixed, un-parameterized value that isn't ours to
+        replicate is exactly what "legacy method, not legacy numbers" argues against, so
+        it is intentionally not replicated here. Only the two well-defined nodes are sent.
+        """
+        self.command_sync(":CHP:AVER:COUN %d" % int(count))
+        self.command_sync(":CHP:AVER %s" % ("ON" if on else "OFF"))
+    def chp_restart(self):
+        """Restart the Channel Power sweep/average cycle (:INIT:REST).
+
+        Sent as a plain command (no *OPC? sync) so the caller can pair it with its own
+        computed settle sleep, matching legacy's INIT:REST + explicit-sleep pattern
+        rather than relying on *OPC? to signal completion of a multi-sweep average.
+        """
+        self.command(":INIT:REST")
     def set_detector_peak(self):
         self.command(":DET:TRACE1 POS")
     def set_max_hold(self):

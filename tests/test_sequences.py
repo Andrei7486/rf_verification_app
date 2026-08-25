@@ -44,16 +44,20 @@ class FakeModulator:
 
 class FakeAnalyzer:
     """Records commands; returns canned numbers for queries."""
-    def __init__(self, sweep_time_s=0.0, peak_table="peak1,-10dB\npeak2,-50dB",
-                 fail_marker_at=None):
+    def __init__(self, sweep_time_s=0.0, chp_sweep_time_s=0.0,
+                 peak_table="peak1,-10dB\npeak2,-50dB",
+                 fail_marker_at=None, fail_chp_reads=0):
         self.log = FakeLog()
         self.cmds = []          # raw SCPI via command/command_sync
         self.calls = []         # (method, args)
         self.peak_hz = 1_000_000_000.0
         self._sweep_time_s = sweep_time_s
+        self._chp_sweep_time_s = chp_sweep_time_s
         self._peak_table = peak_table
         self._fail_marker_at = fail_marker_at   # freq_hz that marker_level_at() should raise on
         self.peak_table_reads = 0
+        self._fail_chp_reads = fail_chp_reads   # remaining read_chp() calls that should raise
+        self.chp_restarts = 0
     def _rec(self, name, *a):
         self.calls.append((name, a))
     # low level
@@ -74,6 +78,10 @@ class FakeAnalyzer:
     def set_bw(self, r, v): self._rec("set_bw", r, v)
     def set_chp_span(self, s): self._rec("set_chp_span", s)
     def set_chp_bw(self, r, v): self._rec("set_chp_bw", r, v)
+    def set_chp_sweep_time_auto(self, on=True): self._rec("set_chp_sweep_time_auto", on)
+    def get_chp_sweep_time(self): self._rec("get_chp_sweep_time"); return self._chp_sweep_time_s
+    def set_chp_average(self, on, count): self._rec("set_chp_average", on, count)
+    def chp_restart(self): self._rec("chp_restart"); self.chp_restarts += 1
     def set_sweep_time(self, s): self._rec("set_sweep_time", s)
     def get_sweep_time(self): self._rec("get_sweep_time"); return self._sweep_time_s
     def get_peak_table(self):
@@ -85,7 +93,12 @@ class FakeAnalyzer:
     def restart_max_hold(self): self._rec("restart_max_hold")
     def enable_peak_table(self, scpi=None): self._rec("enable_peak_table", scpi)
     # measurement
-    def read_chp(self): self._rec("read_chp"); return -5.0
+    def read_chp(self):
+        self._rec("read_chp")
+        if self._fail_chp_reads > 0:
+            self._fail_chp_reads -= 1
+            raise RuntimeError("simulated CHP read failure")
+        return -5.0
     def marker_level_at(self, hz, settle_s=0.15):
         self._rec("marker_level_at", hz)
         if self._fail_marker_at is not None and hz == self._fail_marker_at:
@@ -212,13 +225,46 @@ def test_power_chp_scoped_nodes():
     assert ("set_chp_span", (pa["span_hz"],)) in fa.calls, fa.calls
     assert ("set_chp_bw", (pa["res_bw_hz"], pa["video_bw_hz"])) in fa.calls, fa.calls
     assert not any(c[0] in ("set_bw", "set_center_span") for c in fa.calls), fa.calls
+    # Stage 2: sweep time left on AUTO (queried, not forced) and averaging configured.
+    assert ("set_chp_sweep_time_auto", (True,)) in fa.calls, fa.calls
+    assert ("get_chp_sweep_time", ()) in fa.calls, fa.calls
+    assert ("set_chp_average", (True, pa.get("chp_average_count", 10))) in fa.calls, fa.calls
+    assert chk._chp_sweep_time_s == fa._chp_sweep_time_s
 
     fa2 = FakeAnalyzer()
     chk.prepare_point(FakeModulator(), fa2, cfg, {"index": 0, "freq_mhz": 950.0, "set_dbm": 0})
     assert ("set_center_freq", (950.0 * 1e6,)) in fa2.calls, fa2.calls
     assert not any(c[0] in ("set_bw", "set_center_span") for c in fa2.calls), fa2.calls
-    print("power: CHP-scoped nodes OK (set_chp_span/set_chp_bw/set_center_freq used, "
-          "generic set_bw/set_center_span not called)")
+    print("power: CHP-scoped nodes OK (set_chp_span/set_chp_bw/set_center_freq/sweep-auto/"
+          "averaging used, generic set_bw/set_center_span not called)")
+
+
+def test_power_chp_read_retry():
+    """Stage 2: a transient CHP read failure retries (via :INIT:REST + settle) instead of
+    aborting the point; exhausting chp_read_retries turns the point into a FAIL and lets
+    the run continue - same per-point isolation pattern as flatness.py/iq_validation.py.
+    """
+    cfg = load_cfg(); chk = get_check("power_accuracy")()
+    pa = dict(cfg["power_accuracy"]); pa["chp_read_retries"] = 3
+    cfg2 = dict(cfg); cfg2["power_accuracy"] = pa
+    point = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
+
+    # Fails twice, succeeds on the 3rd attempt (within the retry budget).
+    fa_ok = FakeAnalyzer(chp_sweep_time_s=0.0, fail_chp_reads=2)
+    meas_ok = chk.measure_point(fa_ok, cfg2, point, "auto", {})
+    assert meas_ok.get("error") is None, meas_ok
+    assert "measured_dbm" in meas_ok, meas_ok
+    assert fa_ok.chp_restarts == 3, fa_ok.chp_restarts  # one INIT:REST per attempt
+
+    # Fails on every attempt -> exhausts the retry budget -> reported as a point error,
+    # not raised (measure_point() must never let this abort the whole run).
+    fa_fail = FakeAnalyzer(chp_sweep_time_s=0.0, fail_chp_reads=99)
+    meas_fail = chk.measure_point(fa_fail, cfg2, point, "auto", {})
+    assert meas_fail.get("error"), meas_fail
+    assert fa_fail.chp_restarts == 3, fa_fail.chp_restarts
+    ev = chk.evaluate_point(cfg2, point, meas_fail)
+    assert ev["result"] == "FAIL" and ev["flag"] is True, ev
+    print("power: CHP read retry OK (transient failure recovers, exhausted retries -> FAIL)")
 
 
 def test_power_atten_and_points():
@@ -272,6 +318,7 @@ if __name__ == "__main__":
     test_flatness_peak_table_gate()
     test_power_levels()
     test_power_chp_scoped_nodes()
+    test_power_chp_read_retry()
     test_power_atten_and_points()
     test_iq_analyzer_setup()
     test_iq_marker_delta_sequence()
