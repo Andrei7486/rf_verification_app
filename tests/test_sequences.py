@@ -1,0 +1,248 @@
+"""Hardware-free checks against the current analyzer.py / core/checks/*.py logic.
+
+Uses fake Analyzer / fake Modulator that just record calls and return canned values -
+no CXA/DUT needed. Covers:
+  - flatness.fixed_freqs() / power_accuracy._levels() drift-free stepping
+  - flatness per-point fault isolation (a bad CXA read or DUT tune -> FAIL, loop continues)
+  - flatness peak-table diagnostic gated by enable_peak_table_logging
+  - iq_validation delta-marker sequence (find_peak -> delta -> LOFT/Image at configured
+    absolute offsets)
+
+Run from the app root:  python -m tests.test_sequences   (or: python tests/test_sequences.py)
+"""
+import copy
+import json
+import os
+import sys
+
+# Allow running both as a module and as a plain script.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from core.checks import get_check
+
+
+class FakeLog:
+    """Minimal stand-in for the RunLogger.logger the checks call cxa.log.* on."""
+    def info(self, *a, **k): pass
+    def warning(self, *a, **k): pass
+    def error(self, *a, **k): pass
+    def debug(self, *a, **k): pass
+
+
+class FakeModulator:
+    """Records every command sent; can be told to raise on a given call index."""
+    def __init__(self, fail_on_call=None):
+        self.sent = []
+        self.fail_on_call = fail_on_call
+    def send(self, cmd, wait=None):
+        idx = len(self.sent)
+        self.sent.append(cmd)
+        if self.fail_on_call is not None and idx == self.fail_on_call:
+            raise RuntimeError("simulated modulator failure")
+        return ""
+
+
+class FakeAnalyzer:
+    """Records commands; returns canned numbers for queries."""
+    def __init__(self, sweep_time_s=0.0, peak_table="peak1,-10dB\npeak2,-50dB",
+                 fail_marker_at=None):
+        self.log = FakeLog()
+        self.cmds = []          # raw SCPI via command/command_sync
+        self.calls = []         # (method, args)
+        self.peak_hz = 1_000_000_000.0
+        self._sweep_time_s = sweep_time_s
+        self._peak_table = peak_table
+        self._fail_marker_at = fail_marker_at   # freq_hz that marker_level_at() should raise on
+        self.peak_table_reads = 0
+    def _rec(self, name, *a):
+        self.calls.append((name, a))
+    # low level
+    def command(self, scpi): self.cmds.append(scpi)
+    def command_sync(self, scpi): self.cmds.append(scpi)
+    def query(self, scpi): return self._peak_table
+    def query_number(self, scpi): return -5.0
+    # setup helpers
+    def preset(self): self._rec("preset")
+    def preset_swept_sa(self): self._rec("preset_swept_sa")
+    def apply_ext_gain(self): self._rec("apply_ext_gain")
+    def set_ext_gain(self, db): self._rec("set_ext_gain", db)
+    def set_ref_level(self, v): self._rec("set_ref_level", v)
+    def set_scale_div(self, v): self._rec("set_scale_div", v)
+    def set_center_span(self, c, s): self._rec("set_center_span", c, s)
+    def set_start_stop(self, a, b): self._rec("set_start_stop", a, b)
+    def set_bw(self, r, v): self._rec("set_bw", r, v)
+    def set_sweep_time(self, s): self._rec("set_sweep_time", s)
+    def get_sweep_time(self): self._rec("get_sweep_time"); return self._sweep_time_s
+    def get_peak_table(self):
+        self._rec("get_peak_table"); self.peak_table_reads += 1
+        return self._peak_table
+    def set_attenuation(self, db): self._rec("set_attenuation", db)
+    def set_attenuation_auto(self, on=True): self._rec("set_attenuation_auto", on)
+    def set_detector_peak(self): self._rec("set_detector_peak")
+    def restart_max_hold(self): self._rec("restart_max_hold")
+    def enable_peak_table(self, scpi=None): self._rec("enable_peak_table", scpi)
+    # measurement
+    def read_chp(self): self._rec("read_chp"); return -5.0
+    def marker_level_at(self, hz, settle_s=0.15):
+        self._rec("marker_level_at", hz)
+        if self._fail_marker_at is not None and hz == self._fail_marker_at:
+            raise RuntimeError("simulated CXA read failure")
+        return -10.0
+    def marker_peak_level(self): self._rec("marker_peak_level"); return -5.0
+    def find_peak(self): self._rec("find_peak"); return (self.peak_hz, -5.0)
+    def marker_to_delta(self): self._rec("marker_to_delta")
+    def marker_delta_y_at_offset(self, hz, settle_s=0.15):
+        self._rec("marker_delta_y_at_offset", hz); return -60.0
+    def marker_delta_y_at(self, hz, settle_s=0.15):
+        self._rec("marker_delta_y_at", hz); return -60.0
+
+
+def load_cfg():
+    p = os.path.join(os.path.dirname(__file__), "..", "config", "config.json")
+    return json.load(open(p, encoding="utf-8"))
+
+
+def names(fa):
+    return [c[0] for c in fa.calls]
+
+
+# ---------------------------------------------------------------- flatness
+
+def test_flatness_fixed_freqs():
+    """start + i*step stepping: exact grid, no accumulated float drift."""
+    cfg = load_cfg(); chk = get_check("flatness")()
+    freqs = chk.fixed_freqs(cfg)
+    assert len(freqs) == 25, freqs
+    assert freqs[0] == 950.0 and freqs[-1] == 2150.0, freqs
+    assert freqs == [950.0 + i * 50.0 for i in range(25)], freqs
+    print("flatness: fixed_freqs OK (25 points, 950..2150/50, no drift)")
+
+
+def test_flatness_per_point_isolation():
+    """A bad CXA read on one point must not abort the rest of the run."""
+    cfg = load_cfg(); chk = get_check("flatness")()
+    pts = chk.build_points(cfg, [], {})
+    bad_freq_hz = pts[3]["freq_mhz"] * 1e6
+    fa = FakeAnalyzer(sweep_time_s=0.0, fail_marker_at=bad_freq_hz)
+    fm = FakeModulator()
+    chk.modulator_setup(fm, cfg)
+    chk.analyzer_setup(fa, cfg, pts)
+    results = []
+    for pt in pts[:5]:
+        chk.prepare_point(fm, fa, cfg, pt)
+        meas = chk.measure_point(fa, cfg, pt, "auto", {})
+        ev = chk.evaluate_point(cfg, pt, meas)
+        results.append({"index": pt["index"], "point": pt, "meas": meas, "eval": ev})
+    bad, good_after = results[3], results[4]
+    assert bad["meas"].get("error"), bad
+    assert bad["eval"]["result"] == "FAIL" and bad["eval"]["flag"] is True, bad
+    assert good_after["meas"].get("error") is None, good_after   # loop kept going past point 3
+    assert "measured_dbm" in good_after["meas"], good_after
+    # finalize() must tolerate the mix of error/ok results (pk-pk stat skips the error one)
+    summary = chk.finalize(cfg, results)
+    assert summary["verdict"] in ("PASS", "FAIL"), summary
+    rows = [chk.row_for(r) for r in results]
+    assert rows[3]["Result"] == "FAIL" and rows[3]["Measured_dBm"] == "", rows[3]
+    print("flatness: per-point isolation OK (bad CXA read -> FAIL row, loop continues, finalize OK)")
+
+
+def test_flatness_prepare_error_isolation():
+    """A DUT tune failure short-circuits measure_point() instead of touching the CXA."""
+    cfg = load_cfg(); chk = get_check("flatness")()
+    pts = chk.build_points(cfg, [], {})
+    fa = FakeAnalyzer(sweep_time_s=0.0)
+    fm = FakeModulator(fail_on_call=0)   # the first mod.send() (freq tune) raises
+    chk.prepare_point(fm, fa, cfg, pts[0])
+    meas = chk.measure_point(fa, cfg, pts[0], "auto", {})
+    assert meas.get("error"), meas
+    assert not any(c[0] == "marker_level_at" for c in fa.calls), fa.calls
+    print("flatness: prepare-failure isolation OK (tune failure short-circuits the CXA read)")
+
+
+def test_flatness_peak_table_gate():
+    """enable_peak_table_logging gates the diagnostic-only peak table read."""
+    cfg = load_cfg()
+    pt = {"index": 0, "freq_mhz": 950.0}
+
+    cfg_off = copy.deepcopy(cfg)
+    cfg_off["flatness"]["enable_peak_table_logging"] = False
+    fa_off = FakeAnalyzer()
+    get_check("flatness")().measure_point(fa_off, cfg_off, pt, "auto", {})
+    assert fa_off.peak_table_reads == 0, "peak table must stay off by default"
+
+    cfg_on = copy.deepcopy(cfg)
+    cfg_on["flatness"]["enable_peak_table_logging"] = True
+    fa_on = FakeAnalyzer()
+    get_check("flatness")().measure_point(fa_on, cfg_on, pt, "auto", {})
+    assert fa_on.peak_table_reads == 1, "peak table must be read exactly once per point when enabled"
+    print("flatness: peak table gate OK (off by default, one read per point when enabled)")
+
+
+# ------------------------------------------------------------ power accuracy
+
+def test_power_levels():
+    """start - i*step stepping: exact grid, no accumulated float drift."""
+    cfg = load_cfg(); chk = get_check("power_accuracy")()
+    pa = cfg["power_accuracy"]
+    levels = chk._levels(pa)
+    step = abs(pa["pwr_step_db"])
+    assert len(levels) == 16, levels
+    assert levels[0] == pa["pwr_start_dbm"] and levels[-1] == pa["pwr_stop_dbm"], levels
+    assert levels == [round(pa["pwr_start_dbm"] - i * step, 3) for i in range(16)], levels
+    print("power: _levels OK (16 steps, 0..-30/2, no drift)")
+
+
+def test_power_atten_and_points():
+    cfg = load_cfg(); chk = get_check("power_accuracy")()
+    pa = cfg["power_accuracy"]
+    pts = chk.build_points(cfg, [950, 60], {})
+    levels = chk._levels(pa)
+    assert len(pts) == 2 * len(levels)
+    fa = FakeAnalyzer()
+    # Feed a manual reading that exactly cancels each band's configured attenuator, so a
+    # correct compensation always nets to 0 dBm regardless of what the atten values are.
+    if_atten, lb_atten = float(pa["if_atten_db"]), float(pa["lband_atten_db"])
+    m_if = chk.measure_point(fa, cfg, {"freq_mhz": 60, "set_dbm": 0}, "manual", {"measured_dbm": -if_atten})
+    m_lb = chk.measure_point(fa, cfg, {"freq_mhz": 950, "set_dbm": 0}, "manual", {"measured_dbm": -lb_atten})
+    assert abs(m_if["measured_dbm"]) < 1e-6 and abs(m_lb["measured_dbm"]) < 1e-6
+    print("power: OK (multi-freq points, IF/L-band attenuator compensation)")
+
+
+# ------------------------------------------------------------- iq validation
+
+def test_iq_analyzer_setup():
+    cfg = load_cfg(); chk = get_check("iq_validation")()
+    fa = FakeAnalyzer()
+    chk.analyzer_setup(fa, cfg, [{"index": 0, "freq_mhz": 957.0}])
+    n = names(fa)
+    assert "preset" in n and "preset_swept_sa" in n and "apply_ext_gain" in n
+    assert ("set_ref_level", (cfg["iq_validation"]["ref_level_dbm"],)) in fa.calls
+    assert ("set_bw", (cfg["iq_validation"]["res_bw_hz"], cfg["iq_validation"]["video_bw_hz"])) in fa.calls
+    print("iq: analyzer_setup OK (preset/gain/ref-level/bw applied)")
+
+
+def test_iq_marker_delta_sequence():
+    cfg = load_cfg(); chk = get_check("iq_validation")()
+    fa = FakeAnalyzer()
+    m = chk.measure_point(fa, cfg, {"index": 0, "freq_mhz": 957.0}, "auto", {})
+    seq = names(fa)
+    assert seq[:2] == ["find_peak", "marker_to_delta"], seq
+    # marker_to_delta() re-zeroes the reference to the main CW peak, so LOFT/Image are
+    # read at the configured *absolute* offsets from that reference - not peak-relative.
+    deltas = [c[1][0] for c in fa.calls if c[0] == "marker_delta_y_at_offset"]
+    assert deltas == [cfg["iq_validation"]["loft_offset_hz"],
+                      cfg["iq_validation"]["image_offset_hz"]], deltas
+    assert "loft_dbc" in m and "image_dbc" in m
+    print("iq: OK (find_peak -> delta, LOFT/Image read at configured offsets)")
+
+
+if __name__ == "__main__":
+    test_flatness_fixed_freqs()
+    test_flatness_per_point_isolation()
+    test_flatness_prepare_error_isolation()
+    test_flatness_peak_table_gate()
+    test_power_levels()
+    test_power_atten_and_points()
+    test_iq_analyzer_setup()
+    test_iq_marker_delta_sequence()
+    print("\nALL TESTS PASSED")
