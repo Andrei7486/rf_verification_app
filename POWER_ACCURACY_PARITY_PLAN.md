@@ -1,10 +1,10 @@
 # Power Accuracy — Staged Parity Plan (Legacy `NsPowerCalibration`)
 
-Date: 2026-08-25 (revised same day — Stage 3 correction + all 5 decisions resolved)
+Date: 2026-08-25 (revised same day — Stage 3 correction + all 5 decisions resolved; Stage 2 implemented)
 Scope: `core/checks/power_accuracy.py`, `core/analyzer.py`, `core/modulator.py`, `core/session.py`,
 `core/checks/base.py`, `config/config.json`.
-Status: **Plan approved. Stage 1 is being implemented (this document is the source of truth for
-Stages 1–5); Stages 2–5 remain analysis-only until their own implementation pass.**
+Status: **Plan approved. Stage 1 and Stage 2 are implemented and merged (this document is the
+source of truth for Stages 1–5); Stages 3–5 remain analysis-only until their own implementation pass.**
 
 ## Context
 
@@ -172,12 +172,14 @@ Modulator setup: `-modulator-config` / `line` / `sine off` / `symbol-rate 4` / `
 - Risk: **Low** — additive methods, single call-site swap.
 - Bench check: query `:CHP:BAND?` / `:CHP:BAND:VID?` / `:CHP:FREQ:SPAN?` right after setup and confirm they now read back the configured values (they previously would not have, per the earlier investigation).
 
-**Stage 2 — measurement timing + averaging**
-- Files: `core/analyzer.py` (new `get_chp_sweep_time()`, `set_chp_average(on, count)`, `chp_restart_and_settle()` or equivalent read-with-restart method), `core/checks/power_accuracy.py` (`analyzer_setup()` sends averaging setup; `measure_point()` uses restart+settle+retry instead of a bare `read_chp()`).
-- Config keys (additive, fallback to current values): `chp_sweep_time_auto` (default `true`), `chp_average_on` (default `true`), `chp_average_count` (default `10` — the one value taken from `exaSettings.txt` per decision 1/2, nothing else from that file), `chp_read_retries` (default `1` = no retry, preserves current behavior if left at default; retry triggers only on a transport/SCPI exception per decision 3, no value-sanity retry), `chp_settle_margin` (default e.g. `1.1`, same pattern as flatness's `sweep_settle_margin`). `sweep_time_s` kept as fallback when `chp_sweep_time_auto=false`.
-- Backward compatibility: fully additive; an old config without these keys runs with sane defaults matching legacy intent, not the current behavior — flagged explicitly since it's a real behavior change, not a no-op default.
-- Risk: **Low** — same proven mechanism as the flatness settle fix; averaging is a pure-instrument-side addition.
-- Bench check: confirm the first-point-of-block outliers are gone (950 MHz block's first point should sit near the rest of that block, not diverge by several dB).
+**Stage 2 — measurement timing + averaging — IMPLEMENTED (2026-08-25)**
+- Files: `core/analyzer.py` (new `set_chp_sweep_time_auto(on)`, `get_chp_sweep_time()`, `set_chp_average(on, count)`, `chp_restart()`), `core/checks/power_accuracy.py` (`analyzer_setup()` sends the AUTO-sweep-time/averaging setup and queries the effective sweep time; new `_read_chp_with_retry()` wraps `:INIT:REST` + computed settle wait + `read_chp()` in a bounded retry loop, called from `measure_point()` instead of a bare `read_chp()`; `evaluate_point()` turns an exhausted-retry failure into a FAIL row instead of raising).
+- Config keys (additive, fallback to current values): `chp_sweep_time_auto` (default `true`), `chp_average_on` (default `true`), `chp_average_count` (default `10` — the one value taken from `exaSettings.txt` per decision 1/2, nothing else from that file), `chp_read_retries` (default `1` = no retry, preserves current behavior if left at default; retry triggers only on a transport/SCPI exception per decision 3, no value-sanity retry), `chp_settle_margin` (default `1.1`, same pattern as flatness's `sweep_settle_margin`). `sweep_time_s` kept as fallback when `chp_sweep_time_auto=false`.
+- **Deviation from the literal legacy sequence, disclosed rather than silently decided**: legacy's decompiled `InitValidation()` has a bare `CHP:AVER 10` line immediately before `CHP:AVER ON` / `CHP:AVER:COUN <n>`. `:CHP:AVER` is a documented boolean SCPI node; `10` is not a valid SCPI boolean, so this line either duplicates `:CHP:AVER:COUN` (a decompilation artifact) or would be rejected by the instrument. Per decision 1's "legacy method, not legacy numbers," a fixed un-parameterized value that isn't clearly meaningful isn't something to blindly replicate — `set_chp_average()` sends only the two well-defined nodes (`:CHP:AVER:COUN`, `:CHP:AVER`). Flagging this for the operator in case there's a hardware reason for that third line that isn't visible from the decompiled bytecode.
+- Per-point fault isolation added as a natural extension of the retry-loop work (not explicitly in the original Stage 2 wording, but directly wraps the same code path): `power_accuracy.py` had **no** per-point isolation before this stage — a single `read_chp()` exception used to abort the entire run (the same class of bug already fixed in `flatness.py`). Now, after `chp_read_retries` is exhausted, the point is reported as `{"error": ...}` and `evaluate_point()` returns `FAIL`/`flag=True`, matching `flatness.py`'s pattern; the run continues to the next point.
+- Backward compatibility: fully additive; an old config without these keys runs with sane defaults matching legacy intent, not the prior behavior — flagged explicitly since it's a real behavior change, not a no-op default. `flatness.py`/`iq_validation.py` untouched (grep-confirmed no shared call sites with the new methods).
+- Risk: **Low** — same proven mechanism as the flatness settle fix; averaging is a pure-instrument-side addition. New regression tests: `test_power_chp_scoped_nodes()` (extended) and `test_power_chp_read_retry()` in `tests/test_sequences.py` — all 10 tests pass via `python -m tests.test_sequences`.
+- Bench check: confirm `:CHP:SWE:TIME:AUTO?` reads `ON`, `:CHP:AVER?` reads `ON`, `:CHP:AVER:COUN?` reads the configured count (default `10`); confirm the first-point-of-block outliers are gone (950 MHz block's first point should sit near the rest of that block, not diverge by several dB).
 
 **Stage 3 — deterministic baseline init: attenuation + ext gain (corrected — not "ref level parity")**
 - **Correction (resolved 2026-08-25):** the original draft of this stage conflated two different
