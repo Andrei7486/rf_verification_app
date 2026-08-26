@@ -29,12 +29,44 @@ class PowerAccuracyCheck:
                 points.append({"index": i, "freq_mhz": f, "set_dbm": lvl}); i += 1
         return points
     def modulator_setup(self, mod, cfg):
+        pa = cfg["power_accuracy"]
         base.enter_expert(mod)
+        # 'top' first, unlike the old minimal setup - starts from the CLI root menu
+        # regardless of what menu another check (e.g. iq_validation's -calib- path) left
+        # the modulator in, matching legacy startValidate's own navigation.
+        mod.send("top")
         mod.send("-modulator-config")
         mod.send("line")
+        # Legacy order: tx enable before sine off - replicated as given rather than kept
+        # in our old order, since legacy's bench-tested reference results were produced
+        # with the carrier enabled first.
+        mod.send("tx enable")
         mod.send("sine off")
         mod.send("symbol-rate 4")
-        mod.send("tx enable")
+        mod.send("roll-off %s" % pa.get("roll_off", 0.25))
+        mod.send("dual-channel-mode single-ch")
+        mod.send("-channel-1")
+        mod.send("state enable")
+        mod.send("source test-pattern")
+        mod.send("modulation %s" % pa.get("modulation", "qpsk"))
+        mod.send("frame-size %s" % pa.get("frame_size", "normal"))
+        mod.send("fec-rate %s" % pa.get("fec_rate", "2/3"))
+        mod.send("pilot %s" % pa.get("pilot", "yes"))
+        if bool(pa.get("set_output_level_mode", True)):
+            # Decision 4: explicit, default ON - determinism over literal legacy parity,
+            # since our app can't rely on inherited DUT state the way the single-purpose
+            # legacy tool did. UNVERIFIED CLI syntax: legacy never sets this at all (it
+            # only ever inherits whatever the unit was last left in), so there is no
+            # decompiled string to copy here - this is a best-effort guess following the
+            # same kebab-case <setting> <value> pattern as the sibling commands above
+            # (e.g. dual-channel-mode). Confirm on the bench and correct
+            # power_accuracy.output_level_mode_cmd in config if the unit doesn't accept it.
+            cmd = pa.get("output_level_mode_cmd", "output-level-mode constant-power")
+            mod.log.warning("Power accuracy: Output Level Mode CLI syntax is unverified "
+                            "(no legacy reference exists for it) - sending %r; confirm on "
+                            "the bench and fix power_accuracy.output_level_mode_cmd if wrong",
+                            cmd)
+            mod.send(cmd)
     def analyzer_setup(self, cxa, cfg, points):
         pa = cfg["power_accuracy"]
         cxa.preset()

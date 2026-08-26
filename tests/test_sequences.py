@@ -34,6 +34,7 @@ class FakeModulator:
     def __init__(self, fail_on_call=None):
         self.sent = []
         self.fail_on_call = fail_on_call
+        self.log = FakeLog()
     def send(self, cmd, wait=None):
         idx = len(self.sent)
         self.sent.append(cmd)
@@ -275,6 +276,42 @@ def test_power_chp_read_retry():
     print("power: CHP read retry OK (transient failure recovers, exhausted retries -> FAIL)")
 
 
+def test_power_modulator_setup():
+    """Stage 4 parity: full legacy modulator sequence, config-driven values, and the
+    Output Level Mode command gated by set_output_level_mode (default on).
+    """
+    cfg = load_cfg(); chk = get_check("power_accuracy")()
+    fm = FakeModulator()
+    chk.modulator_setup(fm, cfg)
+    # Legacy order: top first, tx enable before sine off, full channel/modulation chain.
+    expected = ["-u expert-login", "top", "-modulator-config", "line",
+                "tx enable", "sine off", "symbol-rate 4", "roll-off 0.25",
+                "dual-channel-mode single-ch", "-channel-1", "state enable",
+                "source test-pattern", "modulation qpsk", "frame-size normal",
+                "fec-rate 2/3", "pilot yes"]
+    assert fm.sent[:len(expected)] == expected, fm.sent
+    assert fm.sent[-1] == "output-level-mode constant-power", fm.sent  # default ON
+
+    # Config-driven values actually get substituted, not hardcoded.
+    cfg2 = json.loads(json.dumps(cfg))
+    cfg2["power_accuracy"].update({"roll_off": 0.35, "modulation": "8psk",
+                                   "fec_rate": "3/4", "frame_size": "short", "pilot": "no"})
+    fm2 = FakeModulator()
+    chk.modulator_setup(fm2, cfg2)
+    for expected_cmd in ("roll-off 0.35", "modulation 8psk", "fec-rate 3/4",
+                         "frame-size short", "pilot no"):
+        assert expected_cmd in fm2.sent, fm2.sent
+
+    # set_output_level_mode=false must skip that command entirely.
+    cfg3 = json.loads(json.dumps(cfg))
+    cfg3["power_accuracy"]["set_output_level_mode"] = False
+    fm3 = FakeModulator()
+    chk.modulator_setup(fm3, cfg3)
+    assert not any("output-level-mode" in c or "constant-power" in c for c in fm3.sent), fm3.sent
+    print("power: modulator setup OK (legacy sequence/order, config-driven values, "
+          "output-level-mode gate)")
+
+
 def test_power_atten_and_points():
     cfg = load_cfg(); chk = get_check("power_accuracy")()
     pa = cfg["power_accuracy"]
@@ -327,6 +364,7 @@ if __name__ == "__main__":
     test_power_levels()
     test_power_chp_scoped_nodes()
     test_power_chp_read_retry()
+    test_power_modulator_setup()
     test_power_atten_and_points()
     test_iq_analyzer_setup()
     test_iq_marker_delta_sequence()
