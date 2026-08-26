@@ -1,10 +1,48 @@
 # Power Accuracy — Staged Parity Plan (Legacy `NsPowerCalibration`)
 
-Date: 2026-08-25/26 (Stage 3 correction + all 5 decisions resolved 08-25; Stages 2–5 implemented 08-26)
+Date: 2026-08-25/26 (Stage 3 correction + all 5 decisions resolved 08-25; Stages 2–5 implemented and
+merged 08-26; bench-verified on real hardware 08-26, two CLI menu-navigation bugs found and fixed)
 Scope: `core/checks/power_accuracy.py`, `core/analyzer.py`, `core/modulator.py`, `core/session.py`,
 `core/checks/base.py`, `config/config.json`.
-Status: **All 5 stages implemented. Stages 1–4 merged, Stage 5 in PR (this document is the
-source of truth for Stages 1–5).**
+Status: **All 5 stages implemented and merged. Bench-verified against the real NS330 unit + CXA
+on 2026-08-26 (see "Bench verification" below) — this document is the source of truth for
+Stages 1–5.**
+
+## Bench verification (2026-08-26)
+
+First real-hardware run after all 5 stages merged. Two menu-navigation bugs were found and fixed,
+neither catchable by the existing test suite (`FakeModulator`/`FakeAnalyzer` have no menu-state
+model) - exactly the class of bug real hardware verification exists to catch.
+
+1. **`modulator_setup()` (Stage 4) left the CLI parked in `-channel-1`.** The full 175-point run's
+   modulator log showed `command not found` for every single `freq`/`power` command
+   `prepare_point()` sent - the DUT never actually retuned or relevelled for the entire run.
+   Root cause: Stage 4 navigates into `-channel-1` to configure `state`/`source`/`modulation`/
+   `frame-size`/`fec-rate`/`pilot`, but never navigated back out; `freq`/`power` are only valid at
+   `-line-`. **Fixed**: `modulator_setup()` now sends `top` / `-modulator-config` / `line` again at
+   the end, the same proven sequence already used at the start of the function.
+2. **`_read_adc_power()` (Stage 5) had the identical bug.** Surfaced immediately on re-testing fix
+   #1: point 1 of a run would succeed (starts at `-line-`, freshly restored), but every point after
+   would fail again, because `-adc-power`/`get-power` also leaves the CLI in a submenu
+   (`-adc-power-`) it never leaves. **Fixed**: `_read_adc_power()` now always navigates back to
+   `-line-` afterward (`try`/`finally`, so this happens even when the ADC read itself fails).
+3. **Bench-confirmed the Output Level Mode command (Stage 4, flagged unverified in its PR) is in
+   fact wrong**: `output-level-mode constant-power` returns `command not found`. `set_output_level_mode`
+   now defaults to `False` (was `True`) - sending a known-wrong command achieves nothing. Mechanism
+   and config key stay in place; opt back in once the correct syntax is known.
+4. **Not fixed, deliberately not guessed at**: `source test-pattern` (a literal legacy string, not
+   a guess this time) returns `Illegal value` on this unit. Flagged rather than substituted with an
+   unverified replacement - there's no obvious kebab-case pattern to extrapolate a fix from, unlike
+   Output Level Mode.
+
+Verification: after both fixes, a 14-point run (950 MHz and 2150 MHz - the L-band edges, all 7
+power steps each) showed **zero** `command not found` errors, and `Actual_dBm` finally tracked
+`Set_dBm` responsively (previously frozen at one constant value regardless of the commanded power).
+Residual deviation (~+9.5-9.8 dB at 950 MHz, ~+4.5-5.7 dB at 2150 MHz for the steady-state points) is
+expected calibration drift on this specific unit (confirmed not yet calibrated by the operator), not
+a code issue - not investigated further per that guidance. A first-point-of-block outlier is still
+visible at 2150 MHz (-16.38 dBm vs. the block's other points clustering consistently) - noted as an
+open observation for a future pass, not chased in this fix.
 
 **Config fix (2026-08-25):** `power_accuracy.chp_integ_bw_hz` corrected on the live config from
 `8000000` to `5000000` — the value flagged as drift in the Stage 1/2 PRs (#5, #6). Integration
@@ -210,7 +248,7 @@ Modulator setup: `-modulator-config` / `line` / `sine off` / `symbol-rate 4` / `
 **Stage 4 — modulator setup parity — IMPLEMENTED (2026-08-26)**
 - Files: `core/checks/power_accuracy.py::modulator_setup()` — full sequence sent in legacy order: `-u expert-login` (existing `base.enter_expert()`) / `top` / `-modulator-config` / `line` / `tx enable` / `sine off` / `symbol-rate 4` / `roll-off` / `dual-channel-mode single-ch` / `-channel-1` / `state enable` / `source test-pattern` / `modulation` / `frame-size` / `fec-rate` / `pilot` / (conditionally) the Output Level Mode command. Kept scoped to `power_accuracy.py` only, no shared `base.py` helper added — neither `flatness.py` nor `iq_validation.py` use this signal path.
 - Two order changes from the pre-Stage-4 code, both intentional, both matching legacy: `top` added as the very first navigation step (starts from the CLI root regardless of what menu a prior check, e.g. `iq_validation`'s `-calib-` path, left the modulator in); `tx enable` now sent *before* `sine off`, reversed from the old order, because legacy's bench-tested reference results were produced with the carrier enabled first — replicated as given rather than kept in the old order.
-- Config keys (additive, code-defaulted only - consistent with Stages 2/3, not added to `config/config.json`): `power_accuracy.roll_off` (default `0.25`), `modulation` (default `qpsk`), `fec_rate` (default `2/3`), `frame_size` (default `normal`), `pilot` (default `yes`) — all matching legacy's literal values. Plus, per decision 4: `power_accuracy.set_output_level_mode` (default **`true`**, not opt-in) and `power_accuracy.output_level_mode_cmd` (default `output-level-mode constant-power`).
+- Config keys (additive, code-defaulted only - consistent with Stages 2/3, not added to `config/config.json`): `power_accuracy.roll_off` (default `0.25`), `modulation` (default `qpsk`), `fec_rate` (default `2/3`), `frame_size` (default `normal`), `pilot` (default `yes`) — all matching legacy's literal values. Plus, per decision 4: `power_accuracy.set_output_level_mode` (originally default `true`, not opt-in) and `power_accuracy.output_level_mode_cmd` (default `output-level-mode constant-power`). **Superseded by bench verification** (see "Bench verification" above): the command is confirmed wrong on real hardware, so the default was changed to `false` post-merge — the decision 4 rationale (determinism over inherited state) still stands, it's just waiting on the correct CLI syntax before it can default on again.
 - **Flag for the operator — genuinely unverified, not a guess dressed up as fact:** legacy *never* sets Output Level Mode at all — it only ever inherits whatever the unit was last left in (that's the entire basis of decision 4's "our app can't rely on inherited state" rationale). There is therefore **no decompiled legacy string to copy** for this one command, unlike every other line in this stage. `output-level-mode constant-power` is a best-effort guess following the same kebab-case `<setting> <value>` pattern as the sibling commands (e.g. `dual-channel-mode single-ch`) — not confirmed against the DUT's actual CLI. `modulator_setup()` logs a warning every time it sends this command, precisely so a wrong guess is visible in the run log rather than silently swallowed. The command text is a config key (`output_level_mode_cmd`) specifically so the operator can correct it without a code change once the real syntax is confirmed on the bench.
 - Backward compatibility: only this check's `modulator_setup()` changes; `flatness.py`/`iq_validation.py` use `base.clean_carrier_setup()`/`base.iq_setup()`, untouched.
 - Risk: **Medium** — direct behavior change to DUT signal generation (modulation format, FEC, pilot, tx-enable/sine-off order), should be bench-verified independently of Stages 1–3 so any effect on the numbers is attributable to this stage specifically, not conflated with the CXA-side fixes. The Output Level Mode line specifically carries **added** risk (unverified syntax) beyond the rest of the stage, which is a faithful legacy-string replication.
