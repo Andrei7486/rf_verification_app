@@ -1,10 +1,18 @@
 # Power Accuracy — Staged Parity Plan (Legacy `NsPowerCalibration`)
 
-Date: 2026-08-25 (revised same day — Stage 3 correction + all 5 decisions resolved; Stage 2 implemented)
+Date: 2026-08-25 (revised same day — Stage 3 correction + all 5 decisions resolved; Stages 2–3 implemented)
 Scope: `core/checks/power_accuracy.py`, `core/analyzer.py`, `core/modulator.py`, `core/session.py`,
 `core/checks/base.py`, `config/config.json`.
-Status: **Plan approved. Stage 1 and Stage 2 are implemented and merged (this document is the
-source of truth for Stages 1–5); Stages 3–5 remain analysis-only until their own implementation pass.**
+Status: **Plan approved. Stages 1–3 are implemented; Stages 1–2 merged, Stage 3 in PR (this
+document is the source of truth for Stages 1–5); Stages 4–5 remain analysis-only until their own
+implementation pass.**
+
+**Config fix (2026-08-25):** `power_accuracy.chp_integ_bw_hz` corrected on the live config from
+`8000000` to `5000000` — the value flagged as drift in the Stage 1/2 PRs (#5, #6). Integration
+bandwidth must match the occupied bandwidth of the signal: symbol-rate × (1 + roll-off) =
+4 MSPS × 1.25 = 5 MHz. The `8000000` on the bench was span, not integration BW. This resolves
+that drift; decision 1 below is otherwise unchanged (the value was always meant to be `5000000`,
+now it actually is on disk).
 
 ## Context
 
@@ -181,7 +189,7 @@ Modulator setup: `-modulator-config` / `line` / `sine off` / `symbol-rate 4` / `
 - Risk: **Low** — same proven mechanism as the flatness settle fix; averaging is a pure-instrument-side addition. New regression tests: `test_power_chp_scoped_nodes()` (extended) and `test_power_chp_read_retry()` in `tests/test_sequences.py` — all 10 tests pass via `python -m tests.test_sequences`.
 - Bench check: confirm `:CHP:SWE:TIME:AUTO?` reads `ON`, `:CHP:AVER?` reads `ON`, `:CHP:AVER:COUN?` reads the configured count (default `10`); confirm the first-point-of-block outliers are gone (950 MHz block's first point should sit near the rest of that block, not diverge by several dB).
 
-**Stage 3 — deterministic baseline init: attenuation + ext gain (corrected — not "ref level parity")**
+**Stage 3 — deterministic baseline init: attenuation + ext gain (corrected — not "ref level parity") — IMPLEMENTED (2026-08-25)**
 - **Correction (resolved 2026-08-25):** the original draft of this stage conflated two different
   legacy methods. `RLEV`/`POW:ATT`/`CORR:SA:GAIN` come from `InitCalibration()`, which belongs to
   `startCalibrate` — a different legacy tool. `startValidate` (our actual reference) calls
@@ -194,10 +202,10 @@ Modulator setup: `-modulator-config` / `line` / `sine off` / `symbol-rate 4` / `
     **deterministic baseline initialization** that `analyzer_setup()` must do on its own, because
     unlike the single-purpose legacy tool, our app can't rely on inheriting undefined instrument
     state between three different checks sharing one CXA.
-- Files: `core/checks/power_accuracy.py::analyzer_setup()` — add `cxa.set_attenuation_auto(True)` and a `power_accuracy`-local `CORR:SA:GAIN 0` push, both *before* the CHP-specific setup block (Stage 1's CHP-scoped nodes).
+- Files: `core/checks/power_accuracy.py::analyzer_setup()` — `cxa.set_attenuation_auto(True)` (gated by new `atten_auto`, default `true`) and an unconditional `cxa.set_ext_gain(0)` (`:CORR:SA:GAIN 0`), both sent right after `preset()`, *before* `:CONF:CHP` and the CHP-specific setup block (Stage 1/2's CHP-scoped nodes) — earlier than the plan draft's "before the CHP setup block" wording strictly required, since attenuation/correction are analyzer-level, not measurement-class-scoped, settings; placing them before even entering CHP mode is the cleanest read of "baseline init." The old `cxa.apply_ext_gain()` call (gated by the global `analyzer.apply_ext_gain` flag, previously a no-op log line since that flag is `false`) was **removed** from this check — superseded by the unconditional local push, avoiding two different code paths that could disagree about what `CORR:SA:GAIN` ends up as.
 - Config keys: new `power_accuracy.atten_auto` (default `true`). No `apply_ext_gain`/`ext_gain_db` override needed at the analyzer-config level — per decision 5, `power_accuracy.py` pushes `CORR:SA:GAIN 0` directly, independent of the global `analyzer.apply_ext_gain` flag.
-- Backward compatibility: `flatness.py`/`iq_validation.py` fully untouched — the global `analyzer.apply_ext_gain` flag stays `false`, so `iq_validation`'s `ext_gain_db=-3.5` path (tied to its own reference calibration) is unaffected. `power_accuracy.ref_level_dbm` is no longer changing at all, removing what was previously the highest-uncertainty part of this stage.
-- Risk: **Low-Medium** (downgraded from the original draft's Medium, since the ref-level change — the part with the least certain effect on other signal levels — is dropped). Attenuation auto-coupling and a zeroed correction are both well-understood, low-surprise instrument states.
+- Backward compatibility: `flatness.py`/`iq_validation.py` fully untouched (grep-confirmed no shared call sites) — the global `analyzer.apply_ext_gain` flag stays `false`, so `iq_validation`'s `ext_gain_db=-3.5` path (tied to its own reference calibration) is unaffected. `power_accuracy.ref_level_dbm` is not changing at all, removing what was previously the highest-uncertainty part of this stage.
+- Risk: **Low-Medium** (downgraded from the original draft's Medium, since the ref-level change — the part with the least certain effect on other signal levels — is dropped). Attenuation auto-coupling and a zeroed correction are both well-understood, low-surprise instrument states. New regression assertions in `test_power_chp_scoped_nodes()` cover both calls firing and firing before the CHP-scoped setup — all 10 tests pass via `python -m tests.test_sequences`.
 - Bench check: confirm `:POW:ATT:AUTO?` reads `ON` and `:CORR:SA:GAIN?` reads `0` right after `analyzer_setup()`; rerun the full sweep and check whether the systematic block-level (not just first-point) deviation shrinks.
 
 **Stage 4 — modulator setup parity**

@@ -38,6 +38,18 @@ class PowerAccuracyCheck:
     def analyzer_setup(self, cxa, cfg, points):
         pa = cfg["power_accuracy"]
         cxa.preset()
+        # Deterministic baseline init - NOT legacy parity. RLEV/POW:ATT/CORR:SA:GAIN come
+        # from InitCalibration(), which belongs to startCalibrate, a different legacy tool
+        # never called by startValidate (our actual reference). Legacy validation just
+        # inherits whatever instrument state the calibration tool left behind; our app
+        # can't rely on that the same way, since three checks share one CXA - this check
+        # brings attenuation and external-gain correction to a known state on its own,
+        # before entering the Channel Power measurement setup below. Sent power_accuracy-
+        # local and unconditional (not gated by the global analyzer.apply_ext_gain flag,
+        # which stays untouched so iq_validation's ext_gain_db=-3.5 path is unaffected).
+        if bool(pa.get("atten_auto", True)):
+            cxa.set_attenuation_auto(True)
+        cxa.set_ext_gain(0)
         cxa.command(":CONF:CHP")
         cxa.command(":CHP:BAND:INT %d" % int(pa["chp_integ_bw_hz"]))
         # Sweep time left on AUTO (queried below) and averaging enabled, mirroring legacy
@@ -50,7 +62,8 @@ class PowerAccuracyCheck:
             cxa.command_sync(":CHP:SWE:TIME %s" % pa["sweep_time_s"])
         cxa.set_chp_average(bool(pa.get("chp_average_on", True)),
                             int(pa.get("chp_average_count", 10)))
-        cxa.apply_ext_gain()
+        # ref_level_dbm is NOT changed to 15 here - that value came from InitCalibration()
+        # (startCalibrate), not the validation-path spec. Kept as our own configurable value.
         cxa.set_ref_level(pa["ref_level_dbm"])
         # CHP-scoped span/RBW/VBW, not the generic :FREQ:SPAN/:BWID/:BWID:VID nodes - the
         # Channel Power measurement keeps its own copy of these, separate from the Spectrum
