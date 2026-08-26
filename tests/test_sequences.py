@@ -31,17 +31,21 @@ class FakeLog:
 
 class FakeModulator:
     """Records every command sent; can be told to raise on a given call index and/or
-    return a canned reply for a specific command (default "" for anything unlisted).
+    a specific command text, and/or return a canned reply for a specific command
+    (default "" for anything unlisted).
     """
-    def __init__(self, fail_on_call=None, replies=None):
+    def __init__(self, fail_on_call=None, fail_on_cmd=None, replies=None):
         self.sent = []
         self.fail_on_call = fail_on_call
+        self.fail_on_cmd = fail_on_cmd
         self.log = FakeLog()
         self.replies = replies or {}
     def send(self, cmd, wait=None):
         idx = len(self.sent)
         self.sent.append(cmd)
         if self.fail_on_call is not None and idx == self.fail_on_call:
+            raise RuntimeError("simulated modulator failure")
+        if self.fail_on_cmd is not None and cmd == self.fail_on_cmd:
             raise RuntimeError("simulated modulator failure")
         return self.replies.get(cmd, "")
 
@@ -280,20 +284,25 @@ def test_power_chp_read_retry():
 
 
 def test_power_modulator_setup():
-    """Stage 4 parity: full legacy modulator sequence, config-driven values, and the
-    Output Level Mode command gated by set_output_level_mode (default on).
+    """Stage 4 parity + bench-confirmed fix (2026-08-26): full legacy modulator
+    sequence, config-driven values, the Output Level Mode command gated OFF by
+    default (bench-confirmed 'command not found'), and - critically - navigation
+    back to -line- at the end, since prepare_point()'s freq/power commands are only
+    valid there and were bench-confirmed to fail with 'command not found' when the
+    CLI was left parked in -channel-1-.
     """
     cfg = load_cfg(); chk = get_check("power_accuracy")()
     fm = FakeModulator()
     chk.modulator_setup(fm, cfg)
-    # Legacy order: top first, tx enable before sine off, full channel/modulation chain.
+    # Legacy order: top first, tx enable before sine off, full channel/modulation
+    # chain, then back to top/-modulator-config/line so freq/power work afterward.
     expected = ["-u expert-login", "top", "-modulator-config", "line",
                 "tx enable", "sine off", "symbol-rate 4", "roll-off 0.25",
                 "dual-channel-mode single-ch", "-channel-1", "state enable",
                 "source test-pattern", "modulation qpsk", "frame-size normal",
-                "fec-rate 2/3", "pilot yes"]
-    assert fm.sent[:len(expected)] == expected, fm.sent
-    assert fm.sent[-1] == "output-level-mode constant-power", fm.sent  # default ON
+                "fec-rate 2/3", "pilot yes", "top", "-modulator-config", "line"]
+    assert fm.sent == expected, fm.sent  # output-level-mode NOT sent by default
+    assert fm.sent[-3:] == ["top", "-modulator-config", "line"], fm.sent
 
     # Config-driven values actually get substituted, not hardcoded.
     cfg2 = json.loads(json.dumps(cfg))
@@ -305,14 +314,16 @@ def test_power_modulator_setup():
                          "frame-size short", "pilot no"):
         assert expected_cmd in fm2.sent, fm2.sent
 
-    # set_output_level_mode=false must skip that command entirely.
+    # set_output_level_mode=true opts back in explicitly (now off by default).
     cfg3 = json.loads(json.dumps(cfg))
-    cfg3["power_accuracy"]["set_output_level_mode"] = False
+    cfg3["power_accuracy"]["set_output_level_mode"] = True
     fm3 = FakeModulator()
     chk.modulator_setup(fm3, cfg3)
-    assert not any("output-level-mode" in c or "constant-power" in c for c in fm3.sent), fm3.sent
+    assert "output-level-mode constant-power" in fm3.sent, fm3.sent
+    # Still returns to -line- afterward regardless.
+    assert fm3.sent[-3:] == ["top", "-modulator-config", "line"], fm3.sent
     print("power: modulator setup OK (legacy sequence/order, config-driven values, "
-          "output-level-mode gate)")
+          "output-level-mode off by default, returns to -line- for freq/power)")
 
 
 def test_power_atten_interpolation():
@@ -349,8 +360,10 @@ def test_power_atten_interpolation():
 
 def test_power_adc_cross_check():
     """Stage 5: DUT-side ADC power cross-check is read per point (diagnostic only,
-    independent of the CXA reading), flows through to the CSV column, and is gated by
-    read_adc_power (default on).
+    independent of the CXA reading), flows through to the CSV column, is gated by
+    read_adc_power (default on), and - bench-confirmed 2026-08-26 - always navigates
+    back to -line- afterward (even on a read failure), since -adc-power leaves the CLI
+    parked in a submenu where the *next* point's freq/power would otherwise fail.
     """
     cfg = load_cfg(); chk = get_check("power_accuracy")()
     fa = FakeAnalyzer()
@@ -359,6 +372,14 @@ def test_power_adc_cross_check():
     chk.prepare_point(fm, fa, cfg, point)
     assert "-adc-power" in fm.sent and "get-power" in fm.sent, fm.sent
     assert point["adc_power_dbm"] == "-12.34", point
+    assert fm.sent[-3:] == ["top", "-modulator-config", "line"], fm.sent
+
+    # Navigation back happens even when the ADC read itself fails.
+    fm_fail = FakeModulator(fail_on_cmd="get-power")
+    point_fail = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
+    chk.prepare_point(fm_fail, fa, cfg, point_fail)
+    assert point_fail.get("adc_power_dbm") is None, point_fail
+    assert fm_fail.sent[-3:] == ["top", "-modulator-config", "line"], fm_fail.sent
 
     meas = chk.measure_point(fa, cfg, point, "auto", {})
     assert meas.get("adc_power_dbm") == "-12.34", meas
