@@ -11,6 +11,8 @@ Mixing the two within one measurement is not allowed, so each check calls only t
 helper that matches its path.
 """
 
+import re
+
 
 def enter_expert(mod):
     """Enter expert mode on the modulator CLI (shared by all checks)."""
@@ -63,3 +65,26 @@ def iq_cleanup(mod):
     mod.send("dac-q 0")
     mod.send("tx disable")
     mod.send("sine off")
+
+
+# Matches a plain or exponential number anywhere in a CLI reply (same shape as
+# iq_validation.py's _NUM_RE - kept local rather than shared to avoid coupling two
+# otherwise-independent checks over a private regex).
+_ADC_NUM_RE = re.compile(r"[-+]?\d+\.?\d*(?:[eE][-+]?\d+)?")
+
+
+def read_adc_power(mod):
+    """DUT-side ADC power cross-check (legacy: '-adc-power' / 'get-power', logged as
+    'adc: <value>'). Diagnostic only - independent of whatever the CXA reports, so it
+    lets the operator tell DUT-side from measurement-side drift apart.
+
+    Returns the parsed value as a string, or None if the CLI reply couldn't be parsed.
+    Callers must treat a read failure as non-fatal - never let this break a measurement.
+    """
+    mod.send("-adc-power")
+    reply = mod.send("get-power") or ""
+    match = re.search(r"power\s*[:=]\s*(\S+)", reply, re.I)
+    if match:
+        return match.group(1).strip().rstrip(",;")
+    nums = _ADC_NUM_RE.findall(reply)
+    return nums[-1] if nums else None
