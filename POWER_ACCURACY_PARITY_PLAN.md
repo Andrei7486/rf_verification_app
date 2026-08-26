@@ -1,11 +1,10 @@
 # Power Accuracy — Staged Parity Plan (Legacy `NsPowerCalibration`)
 
-Date: 2026-08-25/26 (Stage 3 correction + all 5 decisions resolved 08-25; Stages 2–4 implemented)
+Date: 2026-08-25/26 (Stage 3 correction + all 5 decisions resolved 08-25; Stages 2–5 implemented 08-26)
 Scope: `core/checks/power_accuracy.py`, `core/analyzer.py`, `core/modulator.py`, `core/session.py`,
 `core/checks/base.py`, `config/config.json`.
-Status: **Plan approved. Stages 1–4 are implemented; Stages 1–3 merged, Stage 4 in PR (this
-document is the source of truth for Stages 1–5); Stage 5 remains analysis-only until its own
-implementation pass.**
+Status: **All 5 stages implemented. Stages 1–4 merged, Stage 5 in PR (this document is the
+source of truth for Stages 1–5).**
 
 **Config fix (2026-08-25):** `power_accuracy.chp_integ_bw_hz` corrected on the live config from
 `8000000` to `5000000` — the value flagged as drift in the Stage 1/2 PRs (#5, #6). Integration
@@ -218,12 +217,15 @@ Modulator setup: `-modulator-config` / `line` / `sine off` / `symbol-rate 4` / `
 - New regression test: `test_power_modulator_setup()` in `tests/test_sequences.py` — asserts the full sequence and order, config-driven substitution for all five parameterized commands, and that `set_output_level_mode=false` skips that command entirely. All 11 tests pass via `python -m tests.test_sequences`.
 - Bench check: with Stages 1–3 in place, confirm the DUT reports the expected modulation/FEC/pilot state (e.g. via its own CLI query) matches what legacy configured; **specifically check the run log for the Output Level Mode warning and confirm on the DUT's own UI/CLI whether `output-level-mode constant-power` was actually accepted** (vs. rejected/ignored) — correct `power_accuracy.output_level_mode_cmd` in config if not; then check whether any residual deviation changes.
 
-**Stage 5 — frequency-interpolated attenuation + ADC cross-check**
-- Files: `core/checks/power_accuracy.py::_atten()` (linear interpolation between per-band start/stop constants instead of a flat value), `core/modulator.py` or `core/checks/base.py` (new helper to send `-adc-power` / `get-power` and parse the reply), `power_accuracy.py::measure_point()`/`row_for()` (new `ADC_Power_dBm` column, diagnostic only — does not feed `evaluate_point()`'s pass/fail).
-- Config keys (additive): `if_atten_start_db`/`if_atten_stop_db` (default both = current `if_atten_db`, i.e. flat = today's behavior if left unset), `lband_atten_start_db`/`lband_atten_stop_db` (default both = current `lband_atten_db`). This makes the flat-constant behavior the exact fallback when the new keys are absent — true zero-impact default.
-- Backward compatibility: `csv_columns` gains one column — the results-table/report rendering (`static/js/app.js`, `templates/index.html`) iterates `info.columns`/`res.columns` generically, so this should be a non-issue, but worth eyeballing on the first run.
-- Risk: **Low** — attenuation change is a small numeric correction (~0.2 dB per the reference anchors); ADC cross-check is purely additive/diagnostic, doesn't touch pass/fail logic.
-- Bench check: confirm interpolated attenuation matches the reference anchors at 50/180/950/2150 MHz; confirm the ADC column's values track sensibly with the CXA reading on a known-good run.
+**Stage 5 — frequency-interpolated attenuation + ADC cross-check — IMPLEMENTED (2026-08-26)**
+- Files: `core/checks/power_accuracy.py::_atten()` (rewritten to interpolate, via new `_interp()` static helper), `core/checks/base.py` (new `read_adc_power(mod)` helper — placed here rather than `core/modulator.py`, alongside the other shared modulator command-sequence helpers like `enter_expert()`/`iq_setup()`, since it's a CLI command sequence, not a transport primitive), `power_accuracy.py::prepare_point()`/`measure_point()`/`row_for()` (new `ADC_Power_dBm` column, diagnostic only — does not feed `evaluate_point()`'s pass/fail).
+- Config keys (additive): `if_atten_start_db`/`if_atten_stop_db` (default both = current `if_atten_db`), `lband_atten_start_db`/`lband_atten_stop_db` (default both = current `lband_atten_db`) — both endpoints equal is an exact flat fallback when the new keys are absent, verified by test. **Beyond what this plan's bullet originally listed**: the interpolation also needs a frequency *domain* to interpolate over, so four more keys were added — `if_atten_start_mhz`/`if_atten_stop_mhz` (default `50.0`/`if_max_mhz`) and `lband_atten_start_mhz`/`lband_atten_stop_mhz` (default `950.0`/`2150.0`, matching `flatness.py`'s band defaults). These anchor the interpolation to this app's own established band ranges rather than to whatever specific frequency list happens to be loaded for a given run — the link's attenuation curve is a property of the physical cabling across its full designed range, not of which subset of frequencies get tested in one session; deriving the domain from the run's own points instead would silently give a wrong curve if the loaded list doesn't start/stop exactly at the calibrated boundaries. Also `read_adc_power` (default `true`) gates the DUT-side cross-check, same pattern as `iq_validation`'s `read_corrections`.
+- Backward compatibility: `csv_columns` gains one column — confirmed by reading `static/js/app.js` that both the live table (`fillTable()`) and the results report build headers/rows by iterating `columns` generically (no hardcoded column list anywhere), so no `static/js`/`templates` changes were needed. `flatness.py`/`iq_validation.py` untouched.
+- Risk: **Low** — attenuation change is a small numeric correction (~0.2 dB per the reference anchors, verified against them exactly by test); ADC cross-check is purely additive/diagnostic (read in `prepare_point()`, which already receives `mod` — `measure_point()` does not receive `mod` in this codebase's check interface, so the value is threaded through via the `point` dict, the same pattern `iq_validation.py` already uses for its phase/LOFT correction diagnostics), doesn't touch pass/fail logic. A DUT-side read failure is caught and logged, never propagated.
+- New regression tests: `test_power_atten_interpolation()` (reference-anchor endpoints match exactly, midpoint interpolates linearly, out-of-range clamps to the nearer endpoint instead of extrapolating, default config is an exact flat fallback) and `test_power_adc_cross_check()` (read per point, flows through to the CSV column, `read_adc_power=false` skips the DUT read entirely) in `tests/test_sequences.py`. All 13 tests pass via `python -m tests.test_sequences`.
+- Bench check: confirm interpolated attenuation matches the reference anchors at 50/180/950/2150 MHz; confirm the `ADC_Power_dBm` column's values track sensibly with the CXA reading on a known-good run.
+
+**This completes all 5 stages of the parity plan.**
 
 ## 6. Decisions — RESOLVED (2026-08-25)
 

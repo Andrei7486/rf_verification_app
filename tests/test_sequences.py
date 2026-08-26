@@ -30,17 +30,20 @@ class FakeLog:
 
 
 class FakeModulator:
-    """Records every command sent; can be told to raise on a given call index."""
-    def __init__(self, fail_on_call=None):
+    """Records every command sent; can be told to raise on a given call index and/or
+    return a canned reply for a specific command (default "" for anything unlisted).
+    """
+    def __init__(self, fail_on_call=None, replies=None):
         self.sent = []
         self.fail_on_call = fail_on_call
         self.log = FakeLog()
+        self.replies = replies or {}
     def send(self, cmd, wait=None):
         idx = len(self.sent)
         self.sent.append(cmd)
         if self.fail_on_call is not None and idx == self.fail_on_call:
             raise RuntimeError("simulated modulator failure")
-        return ""
+        return self.replies.get(cmd, "")
 
 
 class FakeAnalyzer:
@@ -312,6 +315,67 @@ def test_power_modulator_setup():
           "output-level-mode gate)")
 
 
+def test_power_atten_interpolation():
+    """Stage 5: link attenuation interpolates linearly between per-band start/stop
+    anchors instead of a flat constant; default config (no *_start_db/*_stop_db keys)
+    falls back to the exact flat behaviour (both endpoints equal); values outside the
+    anchor range clamp to the nearer endpoint rather than extrapolating.
+    """
+    cfg = load_cfg(); chk = get_check("power_accuracy")()
+    pa = dict(cfg["power_accuracy"])
+    pa.update({
+        "if_atten_start_mhz": 50.0, "if_atten_stop_mhz": 180.0,
+        "if_atten_start_db": 5.80, "if_atten_stop_db": 5.89,
+        "lband_atten_start_mhz": 950.0, "lband_atten_stop_mhz": 2150.0,
+        "lband_atten_start_db": 3.37, "lband_atten_stop_db": 3.59,
+    })
+    # Reference-anchor endpoints match exactly.
+    assert abs(chk._atten(pa, 50.0) - 5.80) < 1e-9
+    assert abs(chk._atten(pa, 180.0) - 5.89) < 1e-9
+    assert abs(chk._atten(pa, 950.0) - 3.37) < 1e-9
+    assert abs(chk._atten(pa, 2150.0) - 3.59) < 1e-9
+    # Midpoint interpolates linearly.
+    mid_if = chk._atten(pa, 115.0)  # halfway between 50 and 180 MHz
+    assert abs(mid_if - (5.80 + 5.89) / 2) < 1e-6, mid_if
+    # Outside the calibrated range clamps to the nearer endpoint, doesn't extrapolate.
+    assert chk._atten(pa, 10.0) == chk._atten(pa, 50.0)
+    assert chk._atten(pa, 2500.0) == chk._atten(pa, 2150.0)
+    # Default config (new keys absent) must be an EXACT flat fallback.
+    pa_default = cfg["power_accuracy"]
+    assert chk._atten(pa_default, 60.0) == chk._atten(pa_default, 170.0) == float(pa_default["if_atten_db"])
+    assert chk._atten(pa_default, 1000.0) == chk._atten(pa_default, 2100.0) == float(pa_default["lband_atten_db"])
+    print("power: attenuation interpolation OK (matches reference anchors, clamps outside range, flat fallback exact)")
+
+
+def test_power_adc_cross_check():
+    """Stage 5: DUT-side ADC power cross-check is read per point (diagnostic only,
+    independent of the CXA reading), flows through to the CSV column, and is gated by
+    read_adc_power (default on).
+    """
+    cfg = load_cfg(); chk = get_check("power_accuracy")()
+    fa = FakeAnalyzer()
+    point = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
+    fm = FakeModulator(replies={"get-power": "power: -12.34 dBm"})
+    chk.prepare_point(fm, fa, cfg, point)
+    assert "-adc-power" in fm.sent and "get-power" in fm.sent, fm.sent
+    assert point["adc_power_dbm"] == "-12.34", point
+
+    meas = chk.measure_point(fa, cfg, point, "auto", {})
+    assert meas.get("adc_power_dbm") == "-12.34", meas
+    row = chk.row_for({"point": point, "meas": meas, "eval": {}})
+    assert row["ADC_Power_dBm"] == "-12.34", row
+
+    # Gated off -> no DUT-side read at all.
+    cfg_off = json.loads(json.dumps(cfg))
+    cfg_off["power_accuracy"]["read_adc_power"] = False
+    fm2 = FakeModulator(replies={"get-power": "power: -12.34 dBm"})
+    point2 = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
+    chk.prepare_point(fm2, fa, cfg_off, point2)
+    assert not any(c in ("-adc-power", "get-power") for c in fm2.sent), fm2.sent
+    assert point2.get("adc_power_dbm") is None, point2
+    print("power: ADC cross-check OK (read per point, flows to CSV column, gate skips it when off)")
+
+
 def test_power_atten_and_points():
     cfg = load_cfg(); chk = get_check("power_accuracy")()
     pa = cfg["power_accuracy"]
@@ -365,6 +429,8 @@ if __name__ == "__main__":
     test_power_chp_scoped_nodes()
     test_power_chp_read_retry()
     test_power_modulator_setup()
+    test_power_atten_interpolation()
+    test_power_adc_cross_check()
     test_power_atten_and_points()
     test_iq_analyzer_setup()
     test_iq_marker_delta_sequence()

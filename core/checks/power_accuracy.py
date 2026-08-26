@@ -7,7 +7,8 @@ class PowerAccuracyCheck:
     final_only = False
     uses_freq_list = True
     manual_fields = [{"name": "measured_dbm", "label": "Measured level (dBm)", "step": "0.01"}]
-    csv_columns = ["Frequency_MHz", "Set_dBm", "Actual_dBm", "Deviation_dB", "Result"]
+    csv_columns = ["Frequency_MHz", "Set_dBm", "Actual_dBm", "Deviation_dB",
+                   "ADC_Power_dBm", "Result"]
     def __init__(self):
         # Actual (possibly auto-coupled) CHP sweep time, queried once in analyzer_setup()
         # and used by _read_chp_with_retry() to size the settle wait after each
@@ -120,10 +121,57 @@ class PowerAccuracyCheck:
         cxa.set_center_freq(point["freq_mhz"] * 1e6)
         mod.send("freq %s" % point["freq_mhz"])
         mod.send("power %s" % point["set_dbm"], wait=pa["dwell_s"])
+        point["adc_power_dbm"] = self._read_adc_power(mod, pa)
+    def _read_adc_power(self, mod, pa):
+        """DUT-side ADC power cross-check (legacy: -adc-power / get-power), gated by
+        read_adc_power (default on). Diagnostic only, independent of the CXA reading -
+        a failure here must never break the point, so any exception is swallowed and
+        logged rather than propagated.
+        """
+        if not bool(pa.get("read_adc_power", True)):
+            return None
+        try:
+            return base.read_adc_power(mod)
+        except Exception as exc:
+            mod.log.warning("Power accuracy: ADC power read failed: %s", exc)
+            return None
+    @staticmethod
+    def _interp(x, x0, x1, y0, y1):
+        """Linear interpolation of y between (x0,y0) and (x1,y1), clamped to [y0,y1]'s
+        endpoints outside [x0,x1] - a frequency outside the calibrated link range holds
+        the nearer endpoint's attenuation rather than extrapolating past what's known.
+        """
+        if x1 == x0:
+            return y0
+        t = (x - x0) / (x1 - x0)
+        t = max(0.0, min(1.0, t))
+        return y0 + t * (y1 - y0)
     def _atten(self, pa, freq_mhz):
-        if freq_mhz <= float(pa.get("if_max_mhz", 180)):
-            return float(pa.get("if_atten_db", 0))
-        return float(pa.get("lband_atten_db", 0))
+        """Link attenuation compensation, frequency-interpolated per band rather than a
+        flat constant - startValidate's link attenuation varies with frequency (slope
+        fields: startAttn/stopAttn per band). *_start_db/*_stop_db default to the old
+        flat *_atten_db value (both endpoints equal -> constant, exact fallback when the
+        new keys are absent). *_start_mhz/*_stop_mhz anchor the interpolation to this
+        app's own established band ranges (if_max_mhz for the IF upper edge, 950-2150 for
+        L-band, matching flatness.py's defaults) rather than to whatever specific
+        frequency list happens to be loaded for a given run - the link's attenuation
+        curve is a property of the physical cabling across its full designed range, not
+        of which subset of frequencies get tested in one session.
+        """
+        if_max = float(pa.get("if_max_mhz", 180))
+        if freq_mhz <= if_max:
+            flat = float(pa.get("if_atten_db", 0))
+            return self._interp(freq_mhz,
+                                float(pa.get("if_atten_start_mhz", 50.0)),
+                                float(pa.get("if_atten_stop_mhz", if_max)),
+                                float(pa.get("if_atten_start_db", flat)),
+                                float(pa.get("if_atten_stop_db", flat)))
+        flat = float(pa.get("lband_atten_db", 0))
+        return self._interp(freq_mhz,
+                            float(pa.get("lband_atten_start_mhz", 950.0)),
+                            float(pa.get("lband_atten_stop_mhz", 2150.0)),
+                            float(pa.get("lband_atten_start_db", flat)),
+                            float(pa.get("lband_atten_stop_db", flat)))
     def _read_chp_with_retry(self, cxa, pa):
         """Restart the CHP sweep/average cycle, settle, then read.
 
@@ -151,15 +199,16 @@ class PowerAccuracyCheck:
         return None, str(last_exc)
     def measure_point(self, cxa, cfg, point, mode, manual):
         pa = cfg["power_accuracy"]
+        adc = point.get("adc_power_dbm")
         if mode == "auto":
             level, err = self._read_chp_with_retry(cxa, pa)
             if err is not None:
-                return {"error": err}
+                return {"error": err, "adc_power_dbm": adc}
         else:
             level = float(manual["measured_dbm"])
         level = round(level + self._atten(pa, point["freq_mhz"]), 2)
         deviation = round(level - point["set_dbm"], 2)
-        return {"measured_dbm": level, "deviation_db": deviation}
+        return {"measured_dbm": level, "deviation_db": deviation, "adc_power_dbm": adc}
     def evaluate_point(self, cfg, point, meas):
         if meas.get("error"):
             return {"result": "FAIL", "flag": True, "note": meas["error"]}
@@ -174,8 +223,10 @@ class PowerAccuracyCheck:
     def cleanup(self, mod, cfg):
         base.clean_carrier_cleanup(mod)
     def row_for(self, result):
+        adc = result["meas"].get("adc_power_dbm")
         return {"Frequency_MHz": result["point"]["freq_mhz"],
                 "Set_dBm": result["point"]["set_dbm"],
                 "Actual_dBm": result["meas"].get("measured_dbm", ""),
                 "Deviation_dB": result["meas"].get("deviation_db", ""),
+                "ADC_Power_dBm": adc if adc is not None else "",
                 "Result": result["eval"].get("result", "")}
