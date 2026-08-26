@@ -1,0 +1,644 @@
+2026-08-26 15:37:50,134  INFO     ======================================================================
+2026-08-26 15:37:50,135  INFO     RF Verification run: Power accuracy
+2026-08-26 15:37:50,136  INFO     Unit: freqs   Mode: auto
+2026-08-26 15:37:50,136  INFO     ----------------------------------------------------------------------
+2026-08-26 15:37:50,137  INFO     Parameters used for this run:
+2026-08-26 15:37:50,137  INFO         chp_integ_bw_hz        = 5000000
+2026-08-26 15:37:50,138  INFO         dut_conn_type          = telnet
+2026-08-26 15:37:50,140  INFO         dwell_s                = 0.3
+2026-08-26 15:37:50,141  INFO         ext_gain_db            = 0.0
+2026-08-26 15:37:50,141  INFO         if_atten_db            = 5.7
+2026-08-26 15:37:50,141  INFO         if_max_mhz             = 180
+2026-08-26 15:37:50,142  INFO         lband_atten_db         = 3.5
+2026-08-26 15:37:50,142  INFO         mode                   = auto
+2026-08-26 15:37:50,142  INFO         pwr_start_dbm          = 0
+2026-08-26 15:37:50,143  INFO         pwr_step_db            = 2
+2026-08-26 15:37:50,143  INFO         pwr_stop_dbm           = -30
+2026-08-26 15:37:50,144  INFO         pwr_tolerance_db       = 0.8
+2026-08-26 15:37:50,144  INFO         ref_level_dbm          = 0
+2026-08-26 15:37:50,144  INFO         res_bw_hz              = 41000
+2026-08-26 15:37:50,145  INFO         span_hz                = 8000000
+2026-08-26 15:37:50,145  INFO         sweep_time_s           = 0.04
+2026-08-26 15:37:50,146  INFO         video_bw_hz            = 1000
+2026-08-26 15:37:50,146  INFO     ======================================================================
+2026-08-26 15:37:50,161  INFO     CXA connected at 192.168.0.5:5025
+2026-08-26 15:37:50,811  INFO     Modulator connected via telnet 192.168.0.50:23
+2026-08-26 15:37:50,811  INFO     MOD >> -u expert-login
+2026-08-26 15:37:52,263  DEBUG    MOD << -u expert-login
+DS>> 2026-08-26 15:37:44.958296 #      4   <thread>(2455) SYS        >> system: su -c "/data/sw/bin/cli_lnk "
+        debug                    [M] debug menu - expert user                
+        monitor                  [M] monitoring                              
+        system                   [M] system                                  
+        system-config            [M] system configuration                    
+        network-config           [M] Network configuration                   
+        interface-config         [M] configuration                           
+        modulator-config         [M] configuration                           
+        demodulator-config       [M] configuration                           
+        help                     print this message, type help <cmd> for cmd input description
+        history                  display recently used commands          
+        up                       upper menu                              
+        top                      root menu                               
+        exit                     exit cli                                
+        save                     save configuration to file              
+        shell                    move from cli to shell                  
+root@Modem -- *<1>
+2026-08-26 15:37:52,263  INFO     MOD >> top
+2026-08-26 15:37:53,680  DEBUG    MOD << top
+root@Modem -- *<2>
+2026-08-26 15:37:53,681  INFO     MOD >> -modulator-config
+2026-08-26 15:37:57,166  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<3>
+2026-08-26 15:37:57,166  INFO     MOD >> line
+2026-08-26 15:37:58,575  DEBUG    MOD << line
+root@Modem -line- *<4>
+2026-08-26 15:37:58,575  INFO     MOD >> tx enable
+2026-08-26 15:37:59,988  DEBUG    MOD << tx enable
+root@Modem -line- *<5>
+2026-08-26 15:37:59,988  INFO     MOD >> sine off
+2026-08-26 15:38:01,405  DEBUG    MOD << sine off
+root@Modem -line- *<6>
+2026-08-26 15:38:01,405  INFO     MOD >> symbol-rate 4
+2026-08-26 15:38:02,817  DEBUG    MOD << symbol-rate 4
+
+Configuring device, Please wait ........Done.
+root@Modem -line- *<7>
+2026-08-26 15:38:02,817  INFO     MOD >> roll-off 0.25
+2026-08-26 15:38:04,238  DEBUG    MOD << roll-off 0.25
+
+Configuring device, Please wait ........Done.
+root@Modem -line- *<8>
+2026-08-26 15:38:04,238  INFO     MOD >> dual-channel-mode single-ch
+2026-08-26 15:38:05,656  DEBUG    MOD << dual-channel-mode single-ch
+
+Configuring device, Please wait ........Done.
+root@Modem -line- *<9>
+2026-08-26 15:38:05,656  INFO     MOD >> -channel-1
+2026-08-26 15:38:07,065  DEBUG    MOD << -channel-1
+root@Modem -channel-1- *<10>
+2026-08-26 15:38:07,065  INFO     MOD >> state enable
+2026-08-26 15:38:08,482  DEBUG    MOD << state enable
+root@Modem -channel-1- *<11>
+2026-08-26 15:38:08,482  INFO     MOD >> source test-pattern
+2026-08-26 15:38:10,559  DEBUG    MOD << source test-pattern
+
+Illegal value
+root@Modem -channel-1- *<12>
+2026-08-26 15:38:10,559  INFO     MOD >> modulation qpsk
+2026-08-26 15:38:11,981  DEBUG    MOD << modulation qpsk
+
+Configuring device, Please wait ........Done.
+root@Modem -channel-1- *<13>
+2026-08-26 15:38:11,981  INFO     MOD >> frame-size normal
+2026-08-26 15:38:13,400  DEBUG    MOD << frame-size normal
+
+Configuring device, Please wait ........Done.
+root@Modem -channel-1- *<14>
+2026-08-26 15:38:13,400  INFO     MOD >> fec-rate 2/3
+2026-08-26 15:38:14,816  DEBUG    MOD << fec-rate 2/3
+
+Configuring device, Please wait ........Done.
+root@Modem -channel-1- *<15>
+2026-08-26 15:38:14,816  INFO     MOD >> pilot yes
+2026-08-26 15:38:16,232  DEBUG    MOD << pilot yes
+
+Configuring device, Please wait ........Done.
+root@Modem -channel-1- *<16>
+2026-08-26 15:38:16,232  INFO     MOD >> top
+2026-08-26 15:38:17,651  DEBUG    MOD << top
+root@Modem -- *<17>
+2026-08-26 15:38:17,652  INFO     MOD >> -modulator-config
+2026-08-26 15:38:19,058  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<18>
+2026-08-26 15:38:19,058  INFO     MOD >> line
+2026-08-26 15:38:20,471  DEBUG    MOD << line
+root@Modem -line- *<19>
+2026-08-26 15:38:20,471  INFO     CXA >> :SYST:PRES
+2026-08-26 15:38:20,745  INFO     CXA >> :POW:ATT:AUTO ON
+2026-08-26 15:38:20,806  INFO     CXA >> :CORR:SA:GAIN 0.0
+2026-08-26 15:38:20,886  INFO     CXA ?? :CORR:SA:GAIN?
+2026-08-26 15:38:20,889  INFO     power_accuracy: ext gain set to 0.00 dB, instrument reads back 0.00 dB
+2026-08-26 15:38:20,890  INFO     CXA >> :CONF:CHP
+2026-08-26 15:38:20,890  INFO     CXA >> :CHP:BAND:INT 5000000
+2026-08-26 15:38:20,890  INFO     CXA >> :CHP:SWE:TIME:AUTO ON
+2026-08-26 15:38:21,674  INFO     CXA >> :CHP:AVER:COUN 10
+2026-08-26 15:38:21,738  INFO     CXA >> :CHP:AVER ON
+2026-08-26 15:38:21,804  INFO     CXA >> :DISP:WIND:TRAC:Y:RLEV 0
+2026-08-26 15:38:21,804  INFO     CXA >> :CHP:FREQ:SPAN 8000000
+2026-08-26 15:38:21,867  INFO     CXA >> :CHP:BAND:AUTO ON
+2026-08-26 15:38:21,926  INFO     CXA >> :CHP:BAND 41000
+2026-08-26 15:38:21,979  INFO     CXA >> :CHP:BAND:VID:AUTO ON
+2026-08-26 15:38:22,045  INFO     CXA >> :CHP:BAND:VID 1000
+2026-08-26 15:38:22,112  INFO     CXA ?? :CHP:SWE:TIME?
+2026-08-26 15:38:22,112  INFO     Power accuracy: CHP sweep time = 0.1874 s (average count 10)
+2026-08-26 15:38:22,112  INFO     --- Point 1/432  freq=50.0 MHz ---
+2026-08-26 15:38:22,112  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:38:22,124  INFO     MOD >> freq 50.0
+2026-08-26 15:38:23,532  DEBUG    MOD << freq 50.0
+root@Modem -line- *<20>
+2026-08-26 15:38:23,532  INFO     MOD >> power 0.0
+2026-08-26 15:38:27,278  DEBUG    MOD << power 0.0
+root@Modem -line- *<21>
+2026-08-26 15:38:27,281  INFO     MOD >> -adc-power
+2026-08-26 15:38:28,699  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<22>
+2026-08-26 15:38:28,699  INFO     MOD >> get-power
+2026-08-26 15:38:30,117  DEBUG    MOD << get-power
+
+2322.5
+root@Modem -adc-power- *<23>
+2026-08-26 15:38:30,119  INFO     MOD >> top
+2026-08-26 15:38:31,522  DEBUG    MOD << top
+root@Modem -- *<24>
+2026-08-26 15:38:31,522  INFO     MOD >> -modulator-config
+2026-08-26 15:38:32,934  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<25>
+2026-08-26 15:38:32,935  INFO     MOD >> line
+2026-08-26 15:38:34,345  DEBUG    MOD << line
+root@Modem -line- *<26>
+2026-08-26 15:38:34,345  INFO     CXA >> :INIT:REST
+2026-08-26 15:38:34,566  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:38:36,547  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': 0.0, 'Actual_dBm': -0.23, 'Deviation_dB': -0.23, 'ADC_Power_dBm': '23', 'Result': 'PASS'}
+2026-08-26 15:38:36,548  INFO     --- Point 2/432  freq=50.0 MHz ---
+2026-08-26 15:38:36,548  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:38:36,549  INFO     MOD >> freq 50.0
+2026-08-26 15:38:37,963  DEBUG    MOD << freq 50.0
+root@Modem -line- *<27>
+2026-08-26 15:38:37,963  INFO     MOD >> power -2.0
+2026-08-26 15:38:39,465  DEBUG    MOD << power -2.0
+root@Modem -line- *<28>
+2026-08-26 15:38:39,465  INFO     MOD >> -adc-power
+2026-08-26 15:38:41,772  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<29>
+2026-08-26 15:38:41,772  INFO     MOD >> get-power
+2026-08-26 15:38:43,188  DEBUG    MOD << get-power
+
+2212.6
+root@Modem -adc-power- *<30>
+2026-08-26 15:38:43,188  INFO     MOD >> top
+2026-08-26 15:38:44,611  DEBUG    MOD << top
+root@Modem -- *<31>
+2026-08-26 15:38:44,611  INFO     MOD >> -modulator-config
+2026-08-26 15:38:46,036  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<32>
+2026-08-26 15:38:46,036  INFO     MOD >> line
+2026-08-26 15:38:47,459  DEBUG    MOD << line
+root@Modem -line- *<33>
+2026-08-26 15:38:47,460  INFO     CXA >> :INIT:REST
+2026-08-26 15:38:47,679  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:38:49,775  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -2.0, 'Actual_dBm': -2.24, 'Deviation_dB': -0.24, 'ADC_Power_dBm': '30', 'Result': 'PASS'}
+2026-08-26 15:38:49,778  INFO     --- Point 3/432  freq=50.0 MHz ---
+2026-08-26 15:38:49,779  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:38:49,779  INFO     MOD >> freq 50.0
+2026-08-26 15:38:51,201  DEBUG    MOD << freq 50.0
+root@Modem -line- *<34>
+2026-08-26 15:38:51,201  INFO     MOD >> power -4.0
+2026-08-26 15:38:52,512  DEBUG    MOD << power -4.0
+root@Modem -line- *<35>
+2026-08-26 15:38:52,512  INFO     MOD >> -adc-power
+2026-08-26 15:38:53,929  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<36>
+2026-08-26 15:38:53,929  INFO     MOD >> get-power
+2026-08-26 15:38:56,807  DEBUG    MOD << get-power
+
+2104.2
+root@Modem -adc-power- *<37>
+2026-08-26 15:38:56,807  INFO     MOD >> top
+2026-08-26 15:38:58,227  DEBUG    MOD << top
+root@Modem -- *<38>
+2026-08-26 15:38:58,228  INFO     MOD >> -modulator-config
+2026-08-26 15:38:59,633  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<39>
+2026-08-26 15:38:59,634  INFO     MOD >> line
+2026-08-26 15:39:01,059  DEBUG    MOD << line
+root@Modem -line- *<40>
+2026-08-26 15:39:01,059  INFO     CXA >> :INIT:REST
+2026-08-26 15:39:01,283  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:39:03,299  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -4.0, 'Actual_dBm': -4.18, 'Deviation_dB': -0.18, 'ADC_Power_dBm': '37', 'Result': 'PASS'}
+2026-08-26 15:39:03,301  INFO     --- Point 4/432  freq=50.0 MHz ---
+2026-08-26 15:39:03,301  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:39:03,302  INFO     MOD >> freq 50.0
+2026-08-26 15:39:04,724  DEBUG    MOD << freq 50.0
+root@Modem -line- *<41>
+2026-08-26 15:39:04,724  INFO     MOD >> power -6.0
+2026-08-26 15:39:06,048  DEBUG    MOD << power -6.0
+root@Modem -line- *<42>
+2026-08-26 15:39:06,048  INFO     MOD >> -adc-power
+2026-08-26 15:39:07,467  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<43>
+2026-08-26 15:39:07,467  INFO     MOD >> get-power
+2026-08-26 15:39:08,880  DEBUG    MOD << get-power
+
+2012.7
+root@Modem -adc-power- *<44>
+2026-08-26 15:39:08,880  INFO     MOD >> top
+2026-08-26 15:39:11,772  DEBUG    MOD << top
+root@Modem -- *<45>
+2026-08-26 15:39:11,772  INFO     MOD >> -modulator-config
+2026-08-26 15:39:13,203  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<46>
+2026-08-26 15:39:13,203  INFO     MOD >> line
+2026-08-26 15:39:14,636  DEBUG    MOD << line
+root@Modem -line- *<47>
+2026-08-26 15:39:14,637  INFO     CXA >> :INIT:REST
+2026-08-26 15:39:14,858  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:39:16,895  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -6.0, 'Actual_dBm': -5.93, 'Deviation_dB': 0.07, 'ADC_Power_dBm': '44', 'Result': 'PASS'}
+2026-08-26 15:39:16,899  INFO     --- Point 5/432  freq=50.0 MHz ---
+2026-08-26 15:39:16,899  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:39:16,899  INFO     MOD >> freq 50.0
+2026-08-26 15:39:18,308  DEBUG    MOD << freq 50.0
+root@Modem -line- *<48>
+2026-08-26 15:39:18,308  INFO     MOD >> power -8.0
+2026-08-26 15:39:19,630  DEBUG    MOD << power -8.0
+root@Modem -line- *<49>
+2026-08-26 15:39:19,630  INFO     MOD >> -adc-power
+2026-08-26 15:39:21,038  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<50>
+2026-08-26 15:39:21,039  INFO     MOD >> get-power
+2026-08-26 15:39:22,450  DEBUG    MOD << get-power
+
+1892.6
+root@Modem -adc-power- *<51>
+2026-08-26 15:39:22,450  INFO     MOD >> top
+2026-08-26 15:39:23,872  DEBUG    MOD << top
+root@Modem -- *<52>
+2026-08-26 15:39:23,873  INFO     MOD >> -modulator-config
+2026-08-26 15:39:26,575  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<53>
+2026-08-26 15:39:26,575  INFO     MOD >> line
+2026-08-26 15:39:27,992  DEBUG    MOD << line
+root@Modem -line- *<54>
+2026-08-26 15:39:27,992  INFO     CXA >> :INIT:REST
+2026-08-26 15:39:28,209  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:39:30,214  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -8.0, 'Actual_dBm': -8.17, 'Deviation_dB': -0.17, 'ADC_Power_dBm': '51', 'Result': 'PASS'}
+2026-08-26 15:39:30,217  INFO     --- Point 6/432  freq=50.0 MHz ---
+2026-08-26 15:39:30,217  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:39:30,219  INFO     MOD >> freq 50.0
+2026-08-26 15:39:31,641  DEBUG    MOD << freq 50.0
+root@Modem -line- *<55>
+2026-08-26 15:39:31,641  INFO     MOD >> power -10.0
+2026-08-26 15:39:32,967  DEBUG    MOD << power -10.0
+root@Modem -line- *<56>
+2026-08-26 15:39:32,967  INFO     MOD >> -adc-power
+2026-08-26 15:39:34,384  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<57>
+2026-08-26 15:39:34,384  INFO     MOD >> get-power
+2026-08-26 15:39:35,799  DEBUG    MOD << get-power
+
+1774.8
+root@Modem -adc-power- *<58>
+2026-08-26 15:39:35,799  INFO     MOD >> top
+2026-08-26 15:39:37,212  DEBUG    MOD << top
+root@Modem -- *<59>
+2026-08-26 15:39:37,212  INFO     MOD >> -modulator-config
+2026-08-26 15:39:38,623  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<60>
+2026-08-26 15:39:38,623  INFO     MOD >> line
+2026-08-26 15:39:41,746  DEBUG    MOD << line
+root@Modem -line- *<61>
+2026-08-26 15:39:41,747  INFO     CXA >> :INIT:REST
+2026-08-26 15:39:41,963  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:39:43,968  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -10.0, 'Actual_dBm': -10.19, 'Deviation_dB': -0.19, 'ADC_Power_dBm': '58', 'Result': 'PASS'}
+2026-08-26 15:39:43,969  INFO     --- Point 7/432  freq=50.0 MHz ---
+2026-08-26 15:39:43,970  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:39:43,971  INFO     MOD >> freq 50.0
+2026-08-26 15:39:45,381  DEBUG    MOD << freq 50.0
+root@Modem -line- *<62>
+2026-08-26 15:39:45,381  INFO     MOD >> power -12.0
+2026-08-26 15:39:46,706  DEBUG    MOD << power -12.0
+root@Modem -line- *<63>
+2026-08-26 15:39:46,707  INFO     MOD >> -adc-power
+2026-08-26 15:39:48,121  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<64>
+2026-08-26 15:39:48,121  INFO     MOD >> get-power
+2026-08-26 15:39:49,532  DEBUG    MOD << get-power
+
+1674.3
+root@Modem -adc-power- *<65>
+2026-08-26 15:39:49,532  INFO     MOD >> top
+2026-08-26 15:39:50,951  DEBUG    MOD << top
+root@Modem -- *<66>
+2026-08-26 15:39:50,951  INFO     MOD >> -modulator-config
+2026-08-26 15:39:52,377  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<67>
+2026-08-26 15:39:52,377  INFO     MOD >> line
+2026-08-26 15:39:53,792  DEBUG    MOD << line
+root@Modem -line- *<68>
+2026-08-26 15:39:53,792  INFO     CXA >> :INIT:REST
+2026-08-26 15:39:54,887  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:39:56,902  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -12.0, 'Actual_dBm': -12.15, 'Deviation_dB': -0.15, 'ADC_Power_dBm': '65', 'Result': 'PASS'}
+2026-08-26 15:39:56,904  INFO     --- Point 8/432  freq=50.0 MHz ---
+2026-08-26 15:39:56,905  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:39:56,906  INFO     MOD >> freq 50.0
+2026-08-26 15:39:58,325  DEBUG    MOD << freq 50.0
+root@Modem -line- *<69>
+2026-08-26 15:39:58,325  INFO     MOD >> power -14.0
+2026-08-26 15:39:59,635  DEBUG    MOD << power -14.0
+root@Modem -line- *<70>
+2026-08-26 15:39:59,635  INFO     MOD >> -adc-power
+2026-08-26 15:40:01,054  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<71>
+2026-08-26 15:40:01,054  INFO     MOD >> get-power
+2026-08-26 15:40:02,478  DEBUG    MOD << get-power
+
+1571.8
+root@Modem -adc-power- *<72>
+2026-08-26 15:40:02,479  INFO     MOD >> top
+2026-08-26 15:40:03,899  DEBUG    MOD << top
+root@Modem -- *<73>
+2026-08-26 15:40:03,900  INFO     MOD >> -modulator-config
+2026-08-26 15:40:05,321  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<74>
+2026-08-26 15:40:05,321  INFO     MOD >> line
+2026-08-26 15:40:06,753  DEBUG    MOD << line
+root@Modem -line- *<75>
+2026-08-26 15:40:06,753  INFO     CXA >> :INIT:REST
+2026-08-26 15:40:06,976  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:40:08,963  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -14.0, 'Actual_dBm': -14.22, 'Deviation_dB': -0.22, 'ADC_Power_dBm': '72', 'Result': 'PASS'}
+2026-08-26 15:40:11,037  INFO     --- Point 9/432  freq=50.0 MHz ---
+2026-08-26 15:40:11,044  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:40:11,048  INFO     MOD >> freq 50.0
+2026-08-26 15:40:12,527  DEBUG    MOD << freq 50.0
+root@Modem -line- *<76>
+2026-08-26 15:40:12,527  INFO     MOD >> power -16.0
+2026-08-26 15:40:13,845  DEBUG    MOD << power -16.0
+root@Modem -line- *<77>
+2026-08-26 15:40:13,846  INFO     MOD >> -adc-power
+2026-08-26 15:40:15,262  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<78>
+2026-08-26 15:40:15,262  INFO     MOD >> get-power
+2026-08-26 15:40:16,687  DEBUG    MOD << get-power
+
+1458.3
+root@Modem -adc-power- *<79>
+2026-08-26 15:40:16,687  INFO     MOD >> top
+2026-08-26 15:40:18,098  DEBUG    MOD << top
+root@Modem -- *<80>
+2026-08-26 15:40:18,098  INFO     MOD >> -modulator-config
+2026-08-26 15:40:19,518  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<81>
+2026-08-26 15:40:19,519  INFO     MOD >> line
+2026-08-26 15:40:20,932  DEBUG    MOD << line
+root@Modem -line- *<82>
+2026-08-26 15:40:20,932  INFO     CXA >> :INIT:REST
+2026-08-26 15:40:21,152  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:40:23,161  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -16.0, 'Actual_dBm': -16.19, 'Deviation_dB': -0.19, 'ADC_Power_dBm': '79', 'Result': 'PASS'}
+2026-08-26 15:40:23,197  INFO     --- Point 10/432  freq=50.0 MHz ---
+2026-08-26 15:40:23,197  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:40:23,198  INFO     MOD >> freq 50.0
+2026-08-26 15:40:26,481  DEBUG    MOD << freq 50.0
+root@Modem -line- *<83>
+2026-08-26 15:40:26,481  INFO     MOD >> power -18.0
+2026-08-26 15:40:27,868  DEBUG    MOD << power -18.0
+root@Modem -line- *<84>
+2026-08-26 15:40:27,868  INFO     MOD >> -adc-power
+2026-08-26 15:40:29,286  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<85>
+2026-08-26 15:40:29,286  INFO     MOD >> get-power
+2026-08-26 15:40:30,714  DEBUG    MOD << get-power
+
+1361.5
+root@Modem -adc-power- *<86>
+2026-08-26 15:40:30,714  INFO     MOD >> top
+2026-08-26 15:40:32,128  DEBUG    MOD << top
+root@Modem -- *<87>
+2026-08-26 15:40:32,129  INFO     MOD >> -modulator-config
+2026-08-26 15:40:33,539  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<88>
+2026-08-26 15:40:33,539  INFO     MOD >> line
+2026-08-26 15:40:34,956  DEBUG    MOD << line
+root@Modem -line- *<89>
+2026-08-26 15:40:34,957  INFO     CXA >> :INIT:REST
+2026-08-26 15:40:35,178  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:40:37,178  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -18.0, 'Actual_dBm': -18.14, 'Deviation_dB': -0.14, 'ADC_Power_dBm': '86', 'Result': 'PASS'}
+2026-08-26 15:40:37,179  INFO     --- Point 11/432  freq=50.0 MHz ---
+2026-08-26 15:40:37,180  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:40:37,180  INFO     MOD >> freq 50.0
+2026-08-26 15:40:38,602  DEBUG    MOD << freq 50.0
+root@Modem -line- *<90>
+2026-08-26 15:40:38,602  INFO     MOD >> power -20.0
+2026-08-26 15:40:41,735  DEBUG    MOD << power -20.0
+root@Modem -line- *<91>
+2026-08-26 15:40:41,735  INFO     MOD >> -adc-power
+2026-08-26 15:40:43,140  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<92>
+2026-08-26 15:40:43,140  INFO     MOD >> get-power
+2026-08-26 15:40:44,568  DEBUG    MOD << get-power
+
+1258.3
+root@Modem -adc-power- *<93>
+2026-08-26 15:40:44,569  INFO     MOD >> top
+2026-08-26 15:40:45,997  DEBUG    MOD << top
+root@Modem -- *<94>
+2026-08-26 15:40:45,997  INFO     MOD >> -modulator-config
+2026-08-26 15:40:47,406  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<95>
+2026-08-26 15:40:47,406  INFO     MOD >> line
+2026-08-26 15:40:48,822  DEBUG    MOD << line
+root@Modem -line- *<96>
+2026-08-26 15:40:48,822  INFO     CXA >> :INIT:REST
+2026-08-26 15:40:49,040  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:40:51,047  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -20.0, 'Actual_dBm': -20.19, 'Deviation_dB': -0.19, 'ADC_Power_dBm': '93', 'Result': 'PASS'}
+2026-08-26 15:40:51,050  INFO     --- Point 12/432  freq=50.0 MHz ---
+2026-08-26 15:40:51,051  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:40:51,051  INFO     MOD >> freq 50.0
+2026-08-26 15:40:52,467  DEBUG    MOD << freq 50.0
+root@Modem -line- *<97>
+2026-08-26 15:40:52,467  INFO     MOD >> power -22.0
+2026-08-26 15:40:53,790  DEBUG    MOD << power -22.0
+root@Modem -line- *<98>
+2026-08-26 15:40:53,791  INFO     MOD >> -adc-power
+2026-08-26 15:40:57,725  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<99>
+2026-08-26 15:40:57,726  INFO     MOD >> get-power
+2026-08-26 15:40:59,143  DEBUG    MOD << get-power
+
+1138.2
+root@Modem -adc-power- *<100>
+2026-08-26 15:40:59,143  INFO     MOD >> top
+2026-08-26 15:41:00,569  DEBUG    MOD << top
+root@Modem -- *<101>
+2026-08-26 15:41:00,569  INFO     MOD >> -modulator-config
+2026-08-26 15:41:01,978  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<102>
+2026-08-26 15:41:01,979  INFO     MOD >> line
+2026-08-26 15:41:03,393  DEBUG    MOD << line
+root@Modem -line- *<103>
+2026-08-26 15:41:03,393  INFO     CXA >> :INIT:REST
+2026-08-26 15:41:03,618  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:41:05,613  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -22.0, 'Actual_dBm': -22.36, 'Deviation_dB': -0.36, 'ADC_Power_dBm': '100', 'Result': 'PASS'}
+2026-08-26 15:41:05,614  INFO     --- Point 13/432  freq=50.0 MHz ---
+2026-08-26 15:41:05,614  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:41:05,615  INFO     MOD >> freq 50.0
+2026-08-26 15:41:07,031  DEBUG    MOD << freq 50.0
+root@Modem -line- *<104>
+2026-08-26 15:41:07,032  INFO     MOD >> power -24.0
+2026-08-26 15:41:08,345  DEBUG    MOD << power -24.0
+root@Modem -line- *<105>
+2026-08-26 15:41:08,345  INFO     MOD >> -adc-power
+2026-08-26 15:41:11,642  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<106>
+2026-08-26 15:41:11,642  INFO     MOD >> get-power
+2026-08-26 15:41:13,061  DEBUG    MOD << get-power
+
+1041.5
+root@Modem -adc-power- *<107>
+2026-08-26 15:41:13,061  INFO     MOD >> top
+2026-08-26 15:41:14,493  DEBUG    MOD << top
+root@Modem -- *<108>
+2026-08-26 15:41:14,494  INFO     MOD >> -modulator-config
+2026-08-26 15:41:15,910  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<109>
+2026-08-26 15:41:15,911  INFO     MOD >> line
+2026-08-26 15:41:17,333  DEBUG    MOD << line
+root@Modem -line- *<110>
+2026-08-26 15:41:17,333  INFO     CXA >> :INIT:REST
+2026-08-26 15:41:17,557  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:41:19,535  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -24.0, 'Actual_dBm': -24.19, 'Deviation_dB': -0.19, 'ADC_Power_dBm': '107', 'Result': 'PASS'}
+2026-08-26 15:41:19,536  INFO     --- Point 14/432  freq=50.0 MHz ---
+2026-08-26 15:41:19,537  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:41:19,538  INFO     MOD >> freq 50.0
+2026-08-26 15:41:20,944  DEBUG    MOD << freq 50.0
+root@Modem -line- *<111>
+2026-08-26 15:41:20,945  INFO     MOD >> power -26.0
+2026-08-26 15:41:22,270  DEBUG    MOD << power -26.0
+root@Modem -line- *<112>
+2026-08-26 15:41:22,270  INFO     MOD >> -adc-power
+2026-08-26 15:41:23,685  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<113>
+2026-08-26 15:41:23,686  INFO     MOD >> get-power
+2026-08-26 15:41:27,618  DEBUG    MOD << get-power
+
+940.4
+root@Modem -adc-power- *<114>
+2026-08-26 15:41:27,618  INFO     MOD >> top
+2026-08-26 15:41:29,038  DEBUG    MOD << top
+root@Modem -- *<115>
+2026-08-26 15:41:29,038  INFO     MOD >> -modulator-config
+2026-08-26 15:41:30,452  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<116>
+2026-08-26 15:41:30,452  INFO     MOD >> line
+2026-08-26 15:41:31,861  DEBUG    MOD << line
+root@Modem -line- *<117>
+2026-08-26 15:41:31,862  INFO     CXA >> :INIT:REST
+2026-08-26 15:41:32,079  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:41:34,097  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -26.0, 'Actual_dBm': -26.24, 'Deviation_dB': -0.24, 'ADC_Power_dBm': '114', 'Result': 'PASS'}
+2026-08-26 15:41:34,100  INFO     --- Point 15/432  freq=50.0 MHz ---
+2026-08-26 15:41:34,100  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:41:34,101  INFO     MOD >> freq 50.0
+2026-08-26 15:41:35,509  DEBUG    MOD << freq 50.0
+root@Modem -line- *<118>
+2026-08-26 15:41:35,510  INFO     MOD >> power -28.0
+2026-08-26 15:41:36,821  DEBUG    MOD << power -28.0
+root@Modem -line- *<119>
+2026-08-26 15:41:36,821  INFO     MOD >> -adc-power
+2026-08-26 15:41:38,227  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<120>
+2026-08-26 15:41:38,227  INFO     MOD >> get-power
+2026-08-26 15:41:40,114  DEBUG    MOD << get-power
+
+859.9
+root@Modem -adc-power- *<121>
+2026-08-26 15:41:40,114  INFO     MOD >> top
+2026-08-26 15:41:42,118  DEBUG    MOD << top
+root@Modem -- *<122>
+2026-08-26 15:41:42,119  INFO     MOD >> -modulator-config
+2026-08-26 15:41:43,533  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<123>
+2026-08-26 15:41:43,534  INFO     MOD >> line
+2026-08-26 15:41:44,949  DEBUG    MOD << line
+root@Modem -line- *<124>
+2026-08-26 15:41:44,949  INFO     CXA >> :INIT:REST
+2026-08-26 15:41:45,169  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:41:47,170  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -28.0, 'Actual_dBm': -28.14, 'Deviation_dB': -0.14, 'ADC_Power_dBm': '121', 'Result': 'PASS'}
+2026-08-26 15:41:47,171  INFO     --- Point 16/432  freq=50.0 MHz ---
+2026-08-26 15:41:47,172  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-26 15:41:47,172  INFO     MOD >> freq 50.0
+2026-08-26 15:41:48,591  DEBUG    MOD << freq 50.0
+root@Modem -line- *<125>
+2026-08-26 15:41:48,593  INFO     MOD >> power -30.0
+2026-08-26 15:41:49,921  DEBUG    MOD << power -30.0
+root@Modem -line- *<126>
+2026-08-26 15:41:49,921  INFO     MOD >> -adc-power
+2026-08-26 15:41:51,342  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<127>
+2026-08-26 15:41:51,344  INFO     MOD >> get-power
+2026-08-26 15:41:52,777  DEBUG    MOD << get-power
+
+751.5
+root@Modem -adc-power- *<128>
+2026-08-26 15:41:52,777  INFO     MOD >> top
+2026-08-26 15:41:54,205  DEBUG    MOD << top
+root@Modem -- *<129>
+2026-08-26 15:41:54,206  INFO     MOD >> -modulator-config
+2026-08-26 15:41:57,617  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<130>
+2026-08-26 15:41:57,617  INFO     MOD >> line
+2026-08-26 15:41:59,035  DEBUG    MOD << line
+root@Modem -line- *<131>
+2026-08-26 15:41:59,036  INFO     CXA >> :INIT:REST
+2026-08-26 15:41:59,253  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:42:01,253  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -30.0, 'Actual_dBm': -30.16, 'Deviation_dB': -0.16, 'ADC_Power_dBm': '128', 'Result': 'PASS'}
+2026-08-26 15:42:01,256  INFO     --- Point 17/432  freq=70.0 MHz ---
+2026-08-26 15:42:01,257  INFO     CXA >> :FREQ:CENT 70000000
+2026-08-26 15:42:01,257  INFO     MOD >> freq 70.0
+2026-08-26 15:42:02,671  DEBUG    MOD << freq 70.0
+root@Modem -line- *<132>
+2026-08-26 15:42:02,671  INFO     MOD >> power 0.0
+2026-08-26 15:42:03,989  DEBUG    MOD << power 0.0
+root@Modem -line- *<133>
+2026-08-26 15:42:03,989  INFO     MOD >> -adc-power
+2026-08-26 15:42:05,410  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<134>
+2026-08-26 15:42:05,411  INFO     MOD >> get-power
+2026-08-26 15:42:06,822  DEBUG    MOD << get-power
+
+2331.3
+root@Modem -adc-power- *<135>
+2026-08-26 15:42:06,822  INFO     MOD >> top
+2026-08-26 15:42:08,244  DEBUG    MOD << top
+root@Modem -- *<136>
+2026-08-26 15:42:08,244  INFO     MOD >> -modulator-config
+2026-08-26 15:42:10,419  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<137>
+2026-08-26 15:42:10,419  INFO     MOD >> line
+2026-08-26 15:42:11,838  DEBUG    MOD << line
+root@Modem -line- *<138>
+2026-08-26 15:42:11,838  INFO     CXA >> :INIT:REST
+2026-08-26 15:42:12,057  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:42:13,989  INFO     Measured: {'Frequency_MHz': 70.0, 'Set_dBm': 0.0, 'Actual_dBm': -0.0, 'Deviation_dB': -0.0, 'ADC_Power_dBm': '135', 'Result': 'PASS'}
+2026-08-26 15:42:13,990  INFO     --- Point 18/432  freq=70.0 MHz ---
+2026-08-26 15:42:13,991  INFO     CXA >> :FREQ:CENT 70000000
+2026-08-26 15:42:13,992  INFO     MOD >> freq 70.0
+2026-08-26 15:42:15,400  DEBUG    MOD << freq 70.0
+root@Modem -line- *<139>
+2026-08-26 15:42:15,400  INFO     MOD >> power -2.0
+2026-08-26 15:42:16,718  DEBUG    MOD << power -2.0
+root@Modem -line- *<140>
+2026-08-26 15:42:16,718  INFO     MOD >> -adc-power
+2026-08-26 15:42:18,142  DEBUG    MOD << -adc-power
+root@Modem -adc-power- *<141>
+2026-08-26 15:42:18,144  INFO     MOD >> get-power
+2026-08-26 15:42:19,567  DEBUG    MOD << get-power
+
+2198.0
+root@Modem -adc-power- *<142>
+2026-08-26 15:42:19,568  INFO     MOD >> top
+2026-08-26 15:42:20,993  DEBUG    MOD << top
+root@Modem -- *<143>
+2026-08-26 15:42:20,993  INFO     MOD >> -modulator-config
+2026-08-26 15:42:22,409  DEBUG    MOD << -modulator-config
+root@Modem -modulator-config- *<144>
+2026-08-26 15:42:22,409  INFO     MOD >> line
+2026-08-26 15:42:23,823  DEBUG    MOD << line
+root@Modem -line- *<145>
+2026-08-26 15:42:23,823  INFO     CXA >> :INIT:REST
+2026-08-26 15:42:25,705  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-26 15:42:27,647  INFO     Measured: {'Frequency_MHz': 70.0, 'Set_dBm': -2.0, 'Actual_dBm': -2.09, 'Deviation_dB': -0.09, 'ADC_Power_dBm': '142', 'Result': 'PASS'}
+2026-08-26 15:42:27,648  INFO     MOD >> tx disable
+2026-08-26 15:42:29,066  DEBUG    MOD << tx disable
+root@Modem -line- *<146>
+2026-08-26 15:42:29,066  INFO     MOD >> sine off
+2026-08-26 15:42:30,489  DEBUG    MOD << sine off
+root@Modem -line- *<147>
+2026-08-26 15:42:30,489  INFO     Verdict: PASS
+2026-08-26 15:42:30,508  INFO     Results written: power_accuracy_freqs_20260826-153750.csv

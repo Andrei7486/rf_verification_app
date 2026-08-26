@@ -224,6 +224,68 @@ app uses the documented default rather than `0`.
 
 ---
 
+**M7 — Power Accuracy per-point overhead**
+Risk: **R1 + R2 combined in one PR by operator decision (D18)** · Source: bench log
+`power_accuracy_freqs_20260826-153750.log` (archived, `docs/bench/`)
+
+Power Accuracy is significantly slower than the legacy Java tool for identical results. One
+frequency, 0..−30 dBm step 2 (16 points): the operator reports the legacy tool at ~40 s (not
+independently bench-verified against a file in this repository — recorded as reported, not
+measured); this app measured, from the same archived baseline run, **219.1 s** (Point 1 start to
+the 16th `Measured:` line) for the same 16 points.
+
+Measured per-point budget from the baseline log — most modulator commands cost a flat **~1.4 s**
+(n=20, min 1.403 s) regardless of the command, including `top` and `line`; the NS CLI prompt
+(`root@Modem -<menu>- *<N>`) is present in the response but the transport does not wait for it, it
+sleeps a fixed interval instead. `:READ:CHP:CHP?` (~2.0 s, sweep 0.1874 × average 10) and
+`:INIT:REST` (~0.4 s) are correct and untouched — see the constraint below.
+
+Legacy per point (from `POWER_ACCURACY_HANDOFF.md`): `power <n>` only, then `INIT:REST` /
+computed sleep / read.
+
+Three items, one PR:
+
+- **Item 1 (R1) — ADC cross-check behind a flag.** New key
+  `power_accuracy.enable_adc_power_check`, default **`false`**. When off, `-adc-power` /
+  `get-power` / `top` / `-modulator-config` / `line` are never sent — the modulator never leaves
+  `-line-` in the first place, so there is nothing to navigate back from. `ADC_Power_dBm` stays a
+  CSV/results column, empty when the flag is off. The ADC code path is not deleted, only gated.
+  This key **replaces** the previous `power_accuracy.read_adc_power` (default `true`) introduced
+  alongside PR #13's Stage 5 — same purpose, renamed and default-flipped; see the D18 note below and
+  the S-M0 ADR.
+- **Item 2 (R1) — `freq` sent only on change.** The last frequency actually pushed to the
+  modulator is tracked; within a frequency block it is not resent. `:FREQ:CENT` on the analyzer is
+  unchanged (already cheap, ~2 ms).
+- **Item 3 (R2) — prompt-based transport read.** `transport.py` gains a generic, instrument-agnostic
+  `read_until_regex()` (the caller supplies the pattern); `modulator.py` — the only place that
+  knows the NS CLI's prompt shape, per the module boundary in `DEVELOPMENT_RULES.md` §4 — uses it
+  to return as soon as the prompt is seen instead of always waiting a fixed delay. New key
+  `modulator.dut_prompt_wait_timeout_s`, default `3.0` (seconds) — bounds the read so a missing
+  prompt degrades to a bounded wait rather than hanging, never blocking indefinitely.
+  **Mandatory companion:** new key `power_accuracy.dut_settle_after_power_s`, default `0.5`
+  (seconds) — an explicit dwell after `power <dbm>`, before `:INIT:REST`. Rationale: today ~9 s
+  elapse between `power` and the read purely as a side effect of the per-command overhead this
+  item removes; 0.5 s is the value from the legacy `modSettings.txt`, which produces correct
+  readings. Without this the modulator may not have settled and levels read low.
+
+**Constraint.** Does not change `chp_average_count`, the `INIT:REST` computed wait, sweep time
+AUTO, or any CHP-scoped node — D11 is not reopened.
+
+**Acceptance (redefined by the operator during planning — see D18):**
+1. Time from the `--- Point 1/N ---` log line to the last `Measured:` line, single run, 50 MHz
+   only, 0..−30 dBm step 2 (16 points): **under 60 s**. Baseline from the archived log: **219.1 s**.
+2. Setup-phase time (everything before `--- Point 1/N ---`) reported separately, before/after —
+   no threshold.
+3. Every `Actual_dBm` within 0.1 dB of the archived baseline, point by point.
+4. Log shows no `-adc-power` / `get-power` / `top` / `-modulator-config` / `line` between points.
+5. Log shows `MOD freq` once for the block, not 16 times.
+6. `:CORR:SA:GAIN?` read-back still present and matching (per PR #13's mechanism, untouched).
+
+If acceptance item 3 fails, **Item 3 is reverted on its own** — Items 1 and 2 are R1 and stay, since
+they do not change what the instrument reports.
+
+---
+
 ### 5.2 User interface and workflow (track U)
 
 ---
@@ -395,6 +457,7 @@ All accepted as proposed. Binding from now on; reopening one is itself a decisio
 | D15 | Adopt ADRs (`docs/adr/`) and an append-only `docs/JOURNAL.md`, as on BelSystem? | Yes. Decisions D1–D5 have already been re-derived from chat twice; that is exactly what ADRs prevent. Low cost, high value | accepted |
 | D16 | Minimal CI (GitHub Actions: ruff + offline unit tests on push)? | Yes, once S1 lands and there is offline-testable logic to run. No Docker, no browser tests — the bench is the integration suite | accepted |
 | D17 | Does the laptop become the permanent runtime, or is NSLAB04-PC still the target? | Assume the laptop indefinitely, keep the 3.8/win32 floor. Dropping the floor is a one-way door — it costs nothing to hold and would cost a rewrite to restore | accepted |
+| D18 | S-M0 (per-point overhead): ship R1 (items 1–2) and R2 (item 3) in one PR, or split? | One PR, by operator decision, with a stated per-item rollback split — if acceptance criterion 3 (value parity) fails, item 3 alone reverts; items 1–2 stay, since neither changes what the instrument reports | accepted |
 
 <!-- DECISIONS:END -->
 

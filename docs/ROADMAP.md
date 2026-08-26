@@ -18,7 +18,10 @@ run all three checks on the bench and continue production work. See spec §2 (re
  you are here
 ```
 
-**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running.
+**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S-M0 preempts
+the queue** (operator-directed, out of stage order): Power Accuracy's per-point overhead measured at
+5.5x the legacy tool, root-caused and fixed against the archived bench log while P0.1 is still
+running — see the stage entry below. Stacked on the still-unmerged S0 branch/PR.
 
 **Runtime:** the app currently runs from Andrei's laptop (Windows 11 x64), on the lab network with
 the CXA and the DUT. NSLAB04-PC (Windows 7 32-bit) remains a possible future deployment, so the
@@ -66,6 +69,22 @@ Risk: R0 · Est: small · Needs: **D15**
 if D15 is accepted. No application code.
 **Why:** from this point the repository is the source of truth and the chat is not. Also gives CC a
 single entry point so that every future session starts from the same state.
+
+### S-M0 — Power Accuracy per-point overhead (preempts the queue)
+Req: **M7** · Risk: R1 + R2 · Est: medium · Needs: **D18**
+Modulator-side per-point overhead cut from a measured ~13.4 s/point (7 commands at a flat
+~1.4 s/command fixed wait) via: (1) DUT-side ADC power cross-check gated behind
+`power_accuracy.enable_adc_power_check`, default off; (2) `freq` sent only on change within a block,
+not resent every point; (3) prompt-based transport read (`root@Modem ... *<N>`) replacing the fixed
+post-command sleep, with a bounded timeout fallback and a mandatory explicit post-`power` settle
+dwell. Does not touch `chp_average_count`, the `INIT:REST` wait, sweep-time AUTO, or any CHP-scoped
+node (D11 not reopened).
+**Why out of order:** operator-directed; the 5.5x-vs-legacy gap was blocking bench work independently
+of the P0 calibration gate, and the fix does not depend on P0 completing.
+**Accept:** see spec §M7 — Point-1-to-last-`Measured:` time under 60 s (baseline 219.1 s) for the
+50 MHz/16-point block; setup phase reported separately, no threshold; value parity within 0.1 dB;
+no ADC/nav commands between points; `MOD freq` once per block, not once per point;
+`:CORR:SA:GAIN?` read-back unchanged. If value parity fails, item 3 alone reverts.
 
 ### S1 — Config integrity and drift detection
 Req: **M6** · Risk: R0 · Est: small
@@ -161,6 +180,7 @@ confirmed. Plus the delta-marker offset fix.
 | Stage | Blocked by |
 |---|---|
 | S0 | D14, D15 |
+| S-M0 | D18 |
 | S3 | D6 |
 | S5 | D8 |
 | S6 | D12 |
@@ -199,6 +219,7 @@ Update the `Status` cell when a stage moves. Allowed values: `planned`, `blocked
 | P0.5 | Archive the post-calibration baseline | P0 | — | 1 | planned | — | — |
 | P0.6 | Supply the legacy IQ `.class` files | P0 | — | 1 | planned | — | — |
 | S0 | Documentation and repository scaffolding | infra | R0 | 1 | in-progress | — | — |
+| S-M0 | Power Accuracy per-point overhead | M | R1+R2 | 2 | in-progress | — | — |
 | S1 | Config integrity and drift detection | M | R0 | 1 | planned | — | — |
 | S2 | Immediate response after Start Run | U | R0 | 1 | planned | — | — |
 | S3 | Real-time logs | U | R0 | 2 | planned | — | — |
