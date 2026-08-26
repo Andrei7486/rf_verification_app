@@ -76,6 +76,7 @@
   "power_accuracy": {
     "chp_integ_bw_hz": 5000000,
     "dwell_s": 0.3,
+    "ext_gain_db": 0,
     "if_atten_db": 5.7,
     "if_max_mhz": 180,
     "lband_atten_db": 3,

@@ -19,13 +19,25 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.checks import get_check
+from core.checks import base as check_base
 
 
 class FakeLog:
-    """Minimal stand-in for the RunLogger.logger the checks call cxa.log.* on."""
-    def info(self, *a, **k): pass
-    def warning(self, *a, **k): pass
-    def error(self, *a, **k): pass
+    """Stand-in for the RunLogger.logger the checks call cxa.log.* on - records the
+    formatted messages (not just swallowing them) so tests can assert on what was
+    logged, e.g. that a warning-level mismatch actually fired.
+    """
+    def __init__(self):
+        self.infos = []; self.warnings = []; self.errors = []
+    @staticmethod
+    def _fmt(msg, a):
+        try:
+            return msg % a if a else msg
+        except Exception:
+            return msg
+    def info(self, msg, *a, **k): self.infos.append(self._fmt(msg, a))
+    def warning(self, msg, *a, **k): self.warnings.append(self._fmt(msg, a))
+    def error(self, msg, *a, **k): self.errors.append(self._fmt(msg, a))
     def debug(self, *a, **k): pass
 
 
@@ -54,7 +66,7 @@ class FakeAnalyzer:
     """Records commands; returns canned numbers for queries."""
     def __init__(self, sweep_time_s=0.0, chp_sweep_time_s=0.0,
                  peak_table="peak1,-10dB\npeak2,-50dB",
-                 fail_marker_at=None, fail_chp_reads=0):
+                 fail_marker_at=None, fail_chp_reads=0, ext_gain_readback=None):
         self.log = FakeLog()
         self.cmds = []          # raw SCPI via command/command_sync
         self.calls = []         # (method, args)
@@ -66,18 +78,27 @@ class FakeAnalyzer:
         self.peak_table_reads = 0
         self._fail_chp_reads = fail_chp_reads   # remaining read_chp() calls that should raise
         self.chp_restarts = 0
+        self._ext_gain = None                   # last value pushed via set_ext_gain()
+        # If set, :CORR:SA:GAIN? returns this instead of the pushed value - lets a
+        # test simulate a read-back mismatch independent of what was actually sent.
+        self._ext_gain_readback = ext_gain_readback
     def _rec(self, name, *a):
         self.calls.append((name, a))
     # low level
     def command(self, scpi): self.cmds.append(scpi)
     def command_sync(self, scpi): self.cmds.append(scpi)
     def query(self, scpi): return self._peak_table
-    def query_number(self, scpi): return -5.0
+    def query_number(self, scpi):
+        if scpi == ":CORR:SA:GAIN?":
+            return self._ext_gain_readback if self._ext_gain_readback is not None else self._ext_gain
+        return -5.0
     # setup helpers
     def preset(self): self._rec("preset")
     def preset_swept_sa(self): self._rec("preset_swept_sa")
     def apply_ext_gain(self): self._rec("apply_ext_gain")
-    def set_ext_gain(self, db): self._rec("set_ext_gain", db)
+    def set_ext_gain(self, db):
+        self._rec("set_ext_gain", db)
+        self._ext_gain = float(db)
     def set_ref_level(self, v): self._rec("set_ref_level", v)
     def set_scale_div(self, v): self._rec("set_scale_div", v)
     def set_center_span(self, c, s): self._rec("set_center_span", c, s)
@@ -420,7 +441,10 @@ def test_iq_analyzer_setup():
     fa = FakeAnalyzer()
     chk.analyzer_setup(fa, cfg, [{"index": 0, "freq_mhz": 957.0}])
     n = names(fa)
-    assert "preset" in n and "preset_swept_sa" in n and "apply_ext_gain" in n
+    # apply_ext_gain() (the old gated call) is no longer used by any check - replaced
+    # by the per-check resolved+verified push, base.apply_check_ext_gain().
+    assert "preset" in n and "preset_swept_sa" in n and "set_ext_gain" in n
+    assert "apply_ext_gain" not in n, n
     assert ("set_ref_level", (cfg["iq_validation"]["ref_level_dbm"],)) in fa.calls
     assert ("set_bw", (cfg["iq_validation"]["res_bw_hz"], cfg["iq_validation"]["video_bw_hz"])) in fa.calls
     print("iq: analyzer_setup OK (preset/gain/ref-level/bw applied)")
@@ -441,6 +465,78 @@ def test_iq_marker_delta_sequence():
     print("iq: OK (find_peak -> delta, LOFT/Image read at configured offsets)")
 
 
+# --------------------------------------------------- per-check external gain
+
+def test_ext_gain_resolution_and_fallback():
+    """Per-check ext_gain_db, falling back to the global analyzer.ext_gain_db when a
+    check has no override of its own - NOT to 0. power_accuracy has its own key
+    (0, per Decision 5); flatness/iq_validation deliberately do not, so they must
+    resolve to whatever the global value is, even when that's non-zero.
+    """
+    cfg = load_cfg()
+    assert "ext_gain_db" in cfg["power_accuracy"], "power_accuracy must have its own key"
+    assert "ext_gain_db" not in cfg["flatness"], "flatness must NOT have its own key"
+    assert "ext_gain_db" not in cfg["iq_validation"], "iq_validation must NOT have its own key"
+
+    assert check_base.resolve_ext_gain(cfg, "power_accuracy") == cfg["power_accuracy"]["ext_gain_db"]
+    # Default global is 0 here, so exercise the fallback with a non-zero global too -
+    # otherwise "falls back to 0" and "falls back to global" would be indistinguishable.
+    cfg2 = json.loads(json.dumps(cfg))
+    cfg2["analyzer"]["ext_gain_db"] = -3.5
+    assert check_base.resolve_ext_gain(cfg2, "flatness") == -3.5
+    assert check_base.resolve_ext_gain(cfg2, "iq_validation") == -3.5
+    # power_accuracy's own key still wins over the (now different) global.
+    assert check_base.resolve_ext_gain(cfg2, "power_accuracy") == cfg["power_accuracy"]["ext_gain_db"]
+    print("ext gain: resolution OK (per-check key wins; absent key falls back to "
+          "global, not to 0)")
+
+
+def test_ext_gain_pushed_per_check():
+    """Each of the three checks' analyzer_setup() actually pushes its resolved ext
+    gain via set_ext_gain(), independent of the others - the state-leakage fix. Also
+    confirms the push is read back and logged (verification requirement).
+    """
+    cfg = json.loads(json.dumps(load_cfg()))
+    cfg["analyzer"]["ext_gain_db"] = -3.5  # non-zero global, so flatness/iq's push is
+                                            # distinguishable from a stale 0 default.
+    # flatness/iq_validation have no override of their own -> resolve to the global.
+    # power_accuracy has its own key -> resolves to that instead, ignoring the global.
+    for check_key, expected in (("flatness", -3.5), ("iq_validation", -3.5),
+                                ("power_accuracy", cfg["power_accuracy"]["ext_gain_db"])):
+        chk = get_check(check_key)()
+        fa = FakeAnalyzer()
+        if check_key == "flatness":
+            chk.analyzer_setup(fa, cfg, chk.build_points(cfg, [], {}))
+        elif check_key == "iq_validation":
+            chk.analyzer_setup(fa, cfg, [{"index": 0, "freq_mhz": 957.0}])
+        else:
+            chk.analyzer_setup(fa, cfg, [{"index": 0, "freq_mhz": 950.0}])
+        assert ("set_ext_gain", (expected,)) in fa.calls, (check_key, fa.calls)
+        assert any("ext gain" in m for m in fa.log.infos), (check_key, fa.log.infos)
+    print("ext gain: pushed per-check OK (flatness/power_accuracy/iq_validation each "
+          "push their own resolved value, read back and logged)")
+
+
+def test_ext_gain_readback_mismatch_warns():
+    """A read-back that differs from the pushed value by more than 0.01 dB logs a
+    WARNING; a matching (or near-matching, within 0.01 dB) read-back does not.
+    """
+    cfg = load_cfg()
+    fa_mismatch = FakeAnalyzer(ext_gain_readback=1.23)  # pushed value will be 0
+    resolved = check_base.apply_check_ext_gain(fa_mismatch, cfg, "power_accuracy")
+    assert resolved == cfg["power_accuracy"]["ext_gain_db"]
+    assert any("mismatch" in m for m in fa_mismatch.log.warnings), fa_mismatch.log.warnings
+
+    fa_match = FakeAnalyzer()  # no override -> query_number reflects exactly what was pushed
+    check_base.apply_check_ext_gain(fa_match, cfg, "power_accuracy")
+    assert not fa_match.log.warnings, fa_match.log.warnings
+
+    fa_close = FakeAnalyzer(ext_gain_readback=0.005)  # within the 0.01 dB tolerance
+    check_base.apply_check_ext_gain(fa_close, cfg, "power_accuracy")
+    assert not fa_close.log.warnings, fa_close.log.warnings
+    print("ext gain: read-back mismatch OK (warns beyond 0.01 dB, silent within tolerance)")
+
+
 if __name__ == "__main__":
     test_flatness_fixed_freqs()
     test_flatness_per_point_isolation()
@@ -455,4 +551,7 @@ if __name__ == "__main__":
     test_power_atten_and_points()
     test_iq_analyzer_setup()
     test_iq_marker_delta_sequence()
+    test_ext_gain_resolution_and_fallback()
+    test_ext_gain_pushed_per_check()
+    test_ext_gain_readback_mismatch_warns()
     print("\nALL TESTS PASSED")
