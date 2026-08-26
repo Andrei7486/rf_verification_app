@@ -34,6 +34,11 @@ class RunSession:
         # might differ from it (e.g. power_accuracy's own ext_gain_db=0 override).
         snap["ext_gain_db"] = check_base.resolve_ext_gain(self.cfg, self.check.key)
         snap["dut_conn_type"] = self.cfg["modulator"].get("dut_conn_type")
+        # S-M0: modulator-section key (like dut_conn_type above), not covered by the
+        # per-check loop over cfg[self.check.key] - added explicitly so it's visible
+        # in the run header for any check that talks to the modulator.
+        snap["dut_prompt_wait_timeout_s"] = self.cfg["modulator"].get(
+            "dut_prompt_wait_timeout_s", 3.0)
         snap["mode"] = self.mode
         return snap
     def _point_view(self):

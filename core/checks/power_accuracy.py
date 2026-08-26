@@ -14,6 +14,9 @@ class PowerAccuracyCheck:
         # and used by _read_chp_with_retry() to size the settle wait after each
         # :INIT:REST - same "query, don't assume" pattern as flatness.py's sweep-time fix.
         self._chp_sweep_time_s = None
+        # S-M0 item 2: last frequency actually pushed to the modulator, so
+        # prepare_point() only resends 'freq' on a real change within a block.
+        self._last_freq_mhz = None
     def _levels(self, pa):
         start = float(pa["pwr_start_dbm"]); stop = float(pa["pwr_stop_dbm"])
         step = abs(float(pa["pwr_step_db"])) or 1.0
@@ -133,23 +136,40 @@ class PowerAccuracyCheck:
     def prepare_point(self, mod, cxa, cfg, point):
         pa = cfg["power_accuracy"]
         cxa.set_center_freq(point["freq_mhz"] * 1e6)
-        mod.send("freq %s" % point["freq_mhz"])
+        self._send_freq_if_changed(mod, point["freq_mhz"])
         mod.send("power %s" % point["set_dbm"], wait=pa["dwell_s"])
+        # S-M0 mandatory companion to the prompt-based transport read (item 3):
+        # the modulator's CLI prompt returning only means the command was
+        # accepted, not that the RF output has settled. 0.5 s is the legacy
+        # modSettings.txt value - explicit here since it's no longer a side
+        # effect of the per-command overhead this stage removes.
+        time.sleep(float(pa.get("dut_settle_after_power_s", 0.5)))
         point["adc_power_dbm"] = self._read_adc_power(mod, pa)
+    def _send_freq_if_changed(self, mod, freq_mhz):
+        """Only resend 'freq' when it actually changes within a block (S-M0
+        item 2) - the DUT stays tuned across a frequency block's power sweep,
+        so resending it on every point was a pure round-trip with no effect.
+        """
+        if freq_mhz != self._last_freq_mhz:
+            mod.send("freq %s" % freq_mhz)
+            self._last_freq_mhz = freq_mhz
     def _read_adc_power(self, mod, pa):
-        """DUT-side ADC power cross-check (legacy: -adc-power / get-power), gated by
-        read_adc_power (default on). Diagnostic only, independent of the CXA reading -
-        a failure here must never break the point, so any exception is swallowed and
-        logged rather than propagated.
+        """DUT-side ADC power cross-check (legacy: -adc-power / get-power), gated
+        by enable_adc_power_check (S-M0 item 1, default OFF - was 'read_adc_power',
+        default on; superseded, see the S-M0 ADR). Diagnostic only, independent of
+        the CXA reading - a failure here must never break the point, so any
+        exception is swallowed and logged rather than propagated.
 
         base.read_adc_power() enters the -adc-power- submenu and leaves the CLI there -
         bench-confirmed on 2026-08-26: without navigating back to -line- afterward, the
         *next* point's freq/power commands (sent from -line-, per modulator_setup()) get
         rejected with 'command not found', exactly the same class of bug the Stage 4 fix
         addressed for modulator_setup() itself. Always navigate back, even on failure
-        (try/finally), so a bad read doesn't strand every subsequent point too.
+        (try/finally), so a bad read doesn't strand every subsequent point too. When the
+        flag is off, none of this - including the nav-back - is reached at all, so the
+        modulator never leaves -line- in the first place (S-M0 item 1's actual saving).
         """
-        if not bool(pa.get("read_adc_power", True)):
+        if not bool(pa.get("enable_adc_power_check", False)):
             return None
         try:
             return base.read_adc_power(mod)

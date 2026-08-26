@@ -47,6 +47,28 @@ class LineSocket:
         except OSError as exc:
             raise TransportError("Send failed: %s" % exc)
 
+    def _read_loop(self, matches, deadline):
+        """Pull bytes until matches(buf) is true or 'deadline' passes.
+
+        Shared by read_until() (literal substrings) and read_until_regex()
+        (caller-supplied pattern) - both are just "read until X", parameterized
+        by what X is; the byte-level loop is identical either way.
+        """
+        buf = ""
+        while time.time() < deadline:
+            try:
+                chunk = self._sock.recv(4096)
+            except socket.timeout:
+                continue  # no data this slice - keep waiting until the deadline
+            except OSError as exc:
+                raise TransportError("Read failed: %s" % exc)
+            if not chunk:
+                break  # remote closed the connection
+            buf += chunk.decode("ascii", errors="ignore")
+            if matches(buf):
+                return buf
+        return buf
+
     def read_until(self, patterns, timeout=None, require=False):
         """Read until any string in 'patterns' appears, or 'timeout' elapses.
 
@@ -58,26 +80,26 @@ class LineSocket:
         if isinstance(patterns, str):
             patterns = [patterns]
         deadline = time.time() + (self.timeout if timeout is None else timeout)
-        buf = ""
-        while time.time() < deadline:
-            try:
-                chunk = self._sock.recv(4096)
-            except socket.timeout:
-                # No data this slice - keep waiting until the overall deadline.
-                continue
-            except OSError as exc:
-                raise TransportError("Read failed: %s" % exc)
-            if not chunk:
-                # Remote closed the connection.
-                break
-            buf += chunk.decode("ascii", errors="ignore")
-            if any(p in buf for p in patterns):
-                return buf
-        # Deadline reached without seeing any expected pattern.
-        if require:
+        buf = self._read_loop(lambda b: any(p in b for p in patterns), deadline)
+        if require and not any(p in buf for p in patterns):
+            raise TransportError("Timeout: expected %r, got %r" % (patterns, buf[-120:]))
+        return buf
+
+    def read_until_regex(self, pattern, timeout=None, require=False):
+        """Read until a compiled regex matches the buffer, or 'timeout' elapses.
+
+        Same contract as read_until(), matched by regex instead of a literal
+        substring - lets a caller (e.g. modulator.py) detect a structured prompt
+        without this module knowing what that prompt looks like. 'pattern' must
+        be pre-compiled (e.g. with re.DOTALL if the prompt can span a line break).
+        """
+        if self._sock is None:
+            raise TransportError("Socket is not connected")
+        deadline = time.time() + (self.timeout if timeout is None else timeout)
+        buf = self._read_loop(lambda b: bool(pattern.search(b)), deadline)
+        if require and not pattern.search(buf):
             raise TransportError(
-                "Timeout: expected %r, got %r" % (patterns, buf[-120:])
-            )
+                "Timeout: expected pattern %r, got %r" % (pattern.pattern, buf[-120:]))
         return buf
 
     def drain(self, wait=0.3):

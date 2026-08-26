@@ -7,6 +7,7 @@ sequences (expert login, clean-carrier setup, DAC test tone, cleanup) live in th
 modules and in checks/base.py.
 """
 
+import re
 import time
 
 from .transport import LineSocket, TransportError
@@ -14,6 +15,12 @@ from .transport import LineSocket, TransportError
 # Prompt fragments seen on the NS CLI. We match on any of these to know a line was
 # accepted; matching is best-effort because the exact prompt depends on the menu level.
 _PROMPTS = ["#", ">", "sat", "-"]
+
+# Per-command prompt, e.g. "root@Modem -line- *<7>" - N increments on every accepted
+# command. re.DOTALL so it still matches if a "Configuring device, Please wait
+# ........Done." interlude (or stray \r\r\n framing) lands between "root@Modem" and
+# the trailing "*<N>"; command echo alone (no "root@Modem"/"*<N>") never matches.
+_PROMPT_RE = re.compile(r"root@Modem.*?\*<\d+>", re.DOTALL)
 
 
 class ModulatorError(Exception):
@@ -27,16 +34,25 @@ class _BaseModulator:
         self.cfg = cfg
         self.log = log
         self.delay = float(cfg.get("cmd_delay_s", 0.4))
+        self.prompt_timeout = float(cfg.get("dut_prompt_wait_timeout_s", 3.0))
 
     def send(self, cmd, wait=None):
-        """Send a CLI command. Sub-classes implement _write()/_read()."""
+        """Send a CLI command. Sub-classes implement _write()/_read()/
+        _read_until_prompt(); the last defaults to today's fixed sleep+read below.
+        """
         self.log.info("MOD >> %s", cmd)
         self._write(cmd)
-        time.sleep(self.delay if wait is None else wait)
-        echo = self._read()
+        echo = self._read_until_prompt(wait)
         if echo:
             self.log.debug("MOD << %s", echo.strip())
         return echo
+
+    def _read_until_prompt(self, wait):
+        """Default: fixed sleep then drain - today's behaviour, unchanged for
+        Serial. TelnetModulator overrides this with a prompt-based read.
+        """
+        time.sleep(self.delay if wait is None else wait)
+        return self._read()
 
     # Sub-classes must implement these three.
     def connect(self):
@@ -85,6 +101,14 @@ class TelnetModulator(_BaseModulator):
 
     def _read(self):
         return self.io.drain(wait=0.2)
+
+    def _read_until_prompt(self, wait):
+        """Return as soon as the NS CLI prompt is seen, instead of always
+        waiting the full fixed delay - bench-measured at ~1.4 s/command before
+        this (S-M0). Bounded by dut_prompt_wait_timeout_s so a prompt that
+        never appears degrades to a bounded wait rather than hanging.
+        """
+        return self.io.read_until_regex(_PROMPT_RE, timeout=self.prompt_timeout)
 
     def close(self):
         self.io.close()
