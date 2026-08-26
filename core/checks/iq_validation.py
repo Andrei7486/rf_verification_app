@@ -59,7 +59,14 @@ class IqValidationCheck:
         iq = cfg["iq_validation"]
         cxa.preset()
         cxa.preset_swept_sa()
-        cxa.apply_ext_gain()
+        # Resolved+pushed unconditionally, independent of any other check's analyzer
+        # state - see base.apply_check_ext_gain()'s docstring /
+        # POWER_ACCURACY_STATE_LEAKAGE_INVESTIGATION.md. Replaces the old gated
+        # cxa.apply_ext_gain() call, which was a no-op under the documented default
+        # analyzer.apply_ext_gain=false - the exact leak that let power_accuracy's
+        # baseline init silently shift this check's dBc figures by whatever the
+        # operator's manually-set external gain was.
+        base.apply_check_ext_gain(cxa, cfg, self.key)
         cxa.set_ref_level(_num(iq, "ref_level_dbm", 0))
         cxa.set_bw(iq["res_bw_hz"], iq["video_bw_hz"])
         cxa.set_detector_peak()

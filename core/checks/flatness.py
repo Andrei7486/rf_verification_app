@@ -37,7 +37,12 @@ class FlatnessCheck:
         stop = max(p["freq_mhz"] for p in points) * 1e6 + margin
         cxa.preset()
         cxa.preset_swept_sa()
-        cxa.apply_ext_gain()
+        # Resolved+pushed unconditionally, independent of any other check's analyzer
+        # state - see base.apply_check_ext_gain()'s docstring /
+        # POWER_ACCURACY_STATE_LEAKAGE_INVESTIGATION.md. Replaces the old gated
+        # cxa.apply_ext_gain() call, which was a no-op under the documented default
+        # analyzer.apply_ext_gain=false.
+        base.apply_check_ext_gain(cxa, cfg, self.key)
         cxa.set_ref_level(fc["ref_level_dbm"])
         cxa.set_scale_div(fc["scale_div_db"])
         cxa.set_start_stop(start, stop)

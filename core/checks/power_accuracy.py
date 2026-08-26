@@ -88,12 +88,15 @@ class PowerAccuracyCheck:
         # inherits whatever instrument state the calibration tool left behind; our app
         # can't rely on that the same way, since three checks share one CXA - this check
         # brings attenuation and external-gain correction to a known state on its own,
-        # before entering the Channel Power measurement setup below. Sent power_accuracy-
-        # local and unconditional (not gated by the global analyzer.apply_ext_gain flag,
-        # which stays untouched so iq_validation's ext_gain_db=-3.5 path is unaffected).
+        # before entering the Channel Power measurement setup below.
         if bool(pa.get("atten_auto", True)):
             cxa.set_attenuation_auto(True)
-        cxa.set_ext_gain(0)
+        # Resolved from power_accuracy.ext_gain_db (0 by default, per Decision 5) via
+        # the same shared per-check resolution/verification path flatness.py and
+        # iq_validation.py now use - see base.apply_check_ext_gain()'s docstring /
+        # POWER_ACCURACY_STATE_LEAKAGE_INVESTIGATION.md. Previously hardcoded 0 here
+        # directly; now config-driven and read back like the other two checks.
+        base.apply_check_ext_gain(cxa, cfg, self.key)
         cxa.command(":CONF:CHP")
         cxa.command(":CHP:BAND:INT %d" % int(pa["chp_integ_bw_hz"]))
         # Sweep time left on AUTO (queried below) and averaging enabled, mirroring legacy

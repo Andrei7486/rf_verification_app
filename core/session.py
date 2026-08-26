@@ -5,6 +5,7 @@ from .analyzer import Analyzer
 from .modulator import make_modulator
 from .logger import RunLogger, live_clear
 from .checks import get_check
+from .checks import base as check_base
 class SessionError(Exception):
     pass
 class RunSession:
@@ -25,7 +26,13 @@ class RunSession:
         snap = dict(params)
         for key, val in self.cfg.get(self.check.key, {}).items():
             snap[key] = val
-        snap["ext_gain_db"] = self.cfg["analyzer"].get("ext_gain_db")
+        # Per-check resolved value (falls back to the global analyzer.ext_gain_db when
+        # the check has no override of its own), not just the global number - each
+        # check now pushes/verifies its own external gain in analyzer_setup()
+        # (base.apply_check_ext_gain()); this mirrors that same resolution so the run
+        # header reports what will actually be on the instrument, not a value that
+        # might differ from it (e.g. power_accuracy's own ext_gain_db=0 override).
+        snap["ext_gain_db"] = check_base.resolve_ext_gain(self.cfg, self.check.key)
         snap["dut_conn_type"] = self.cfg["modulator"].get("dut_conn_type")
         snap["mode"] = self.mode
         return snap
