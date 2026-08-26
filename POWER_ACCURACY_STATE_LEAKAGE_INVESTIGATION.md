@@ -132,6 +132,69 @@ The attenuation piece (`POW:ATT:AUTO ON`) is lower-risk by comparison: `:SYST:PR
 re-establishes AUTO coupling regardless of what Power Accuracy left behind — this wasn't
 independently re-verified against the real instrument in this investigation.
 
+## Fix implemented (PR #13, merged)
+
+Implemented per-check external gain resolution so no check inherits analyzer state from another —
+see the PR for the full design (`core/checks/base.py`'s `resolve_ext_gain()`/
+`apply_check_ext_gain()`, replacing the gated `apply_ext_gain()` call sites in `flatness.py`/
+`iq_validation.py`, and the new `power_accuracy.ext_gain_db` config key). Each check now pushes its
+own resolved value unconditionally after `preset()`, reads back `:CORR:SA:GAIN?`, and logs both —
+turning the "documented Keysight preset behaviour" assumption in §4 above into something verified
+on every run instead of assumed.
+
+## Bench verification (2026-08-26, real NS330 + CXA)
+
+Confirmed with a short control run first (per the operator's own design: check the read-back log
+line immediately after starting, before committing to a full run), then the full leak scenario.
+
+**Note on the expected value:** this bench session runs in *validation* mode, where `ext_gain_db =
+0` is the correct, intended value for all three checks (not the `-3.5` calibration value discussed
+in the original investigation, which applies to a different scenario). All read-backs below showing
+`0.00 dB` are the expected, correct result for this session — not a sign the config has drifted.
+
+**Step 1 — short control run (flatness, first point of setup only):**
+```
+CXA >> :CORR:SA:GAIN 0.0
+CXA ?? :CORR:SA:GAIN?
+flatness: ext gain set to 0.00 dB, instrument reads back 0.00 dB
+```
+Push matches read-back exactly, no mismatch warning. Confirms both that the fix is live and that
+`:SYST:PRES` does not clear `CORR:SA:GAIN` on this instrument (empirically, not just per Keysight's
+documented behavior as in §4).
+
+**Step 2 — full flatness run** (`flatness_NS330_20260826-134556`, 25 points): completed, `verdict:
+FAIL` (pk-pk 4.76 dB vs. 1.0 dB tolerance — unrelated to this fix). Compared against the most recent
+prior reference run (`flatness_NS330_20260825-150037`): absolute levels differ by ~5-6 dB (other
+config values — carrier power, attenuation — have drifted independently since then, unrelated to
+ext gain), but the **relative deviation shape matches closely** — same MAX at 950 MHz, same MIN at
+2150 MHz, point-by-point deviation-from-mean within ~0.2-0.6 dB across the whole band. Confirms the
+core flatness measurement path is unaffected by Stages 1-5 or this fix.
+
+**Step 3 — Power Accuracy** (`power_accuracy_NS330_20260826-134736`, 950/2150 MHz, 14 points):
+ext gain push+read-back also `0.00 dB` / `0.00 dB`, matching its own `power_accuracy.ext_gain_db=0`
+config. Completed normally.
+
+**Step 4 — flatness again, immediately after Power Accuracy, no manual instrument intervention**
+(`flatness_NS330_20260826-135110`, 25 points) — the direct leak-scenario test. Ext gain push+
+read-back again `0.00 dB` / `0.00 dB`, with the outgoing `:CORR:SA:GAIN 0.0` command explicitly
+present in *this run's own log* — proof it was actively re-pushed, not silently inherited from
+whatever Power Accuracy left behind. Compared against Step 2's flatness run:
+
+| | run1 (before Power Accuracy) | run2 (after Power Accuracy) |
+|---|---|---|
+| pk-pk | 4.76 dB | 4.05 dB |
+
+24 of 25 points matched within **0.01-0.02 dB** (measurement noise). The one exception, 950 MHz
+(**-0.69 dB** delta), is the already-documented, unrelated first-point-of-run settle artifact
+(`flatness.py`'s `_first_point_settled` logic) — not an ext-gain effect.
+
+**Conclusion: no leak.** Before the fix, a 3.5 dB (or any magnitude) shift would have been possible
+if Flatness silently inherited whatever Power Accuracy left `CORR:SA:GAIN` at. Here, both checks
+explicitly assert their own resolved value every time, confirmed both by matching read-backs and by
+the explicit outgoing SCPI command visible in each check's own log — and the sandwiched-Power-
+Accuracy flatness run reproduces the un-sandwiched one within measurement noise.
+
 ## Status
 
-No code changed, no tests run, no PR opened — this was a read-only investigation per the request.
+Investigation complete, fix implemented and merged (PR #13), fix bench-verified against real
+hardware on 2026-08-26 per the protocol above.
