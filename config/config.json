@@ -70,12 +70,15 @@
     "dut_conn_type": "telnet",
     "dut_ip": "192.168.0.50",
     "dut_password": "novelsat",
+    "dut_prompt_wait_timeout_s": 3.0,
     "dut_telnet_port": 23,
     "dut_user": "admin"
   },
   "power_accuracy": {
     "chp_integ_bw_hz": 5000000,
+    "dut_settle_after_power_s": 0.5,
     "dwell_s": 0.3,
+    "enable_adc_power_check": false,
     "ext_gain_db": 0,
     "if_atten_db": 5.7,
     "if_max_mhz": 180,
