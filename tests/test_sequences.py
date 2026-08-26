@@ -230,13 +230,21 @@ def test_power_chp_scoped_nodes():
     assert ("get_chp_sweep_time", ()) in fa.calls, fa.calls
     assert ("set_chp_average", (True, pa.get("chp_average_count", 10))) in fa.calls, fa.calls
     assert chk._chp_sweep_time_s == fa._chp_sweep_time_s
+    # Stage 3: deterministic baseline init - attenuation auto-coupled, ext gain zeroed
+    # power_accuracy-local (not via the generic apply_ext_gain() global-flag path) -
+    # and sent before the CHP-scoped measurement setup, not mixed in after it.
+    assert ("set_attenuation_auto", (True,)) in fa.calls, fa.calls
+    assert ("set_ext_gain", (0,)) in fa.calls, fa.calls
+    assert not any(c[0] == "apply_ext_gain" for c in fa.calls), fa.calls
+    assert fa.calls.index(("set_attenuation_auto", (True,))) < fa.calls.index(("set_chp_span", (pa["span_hz"],))), fa.calls
+    assert fa.calls.index(("set_ext_gain", (0,))) < fa.calls.index(("set_chp_span", (pa["span_hz"],))), fa.calls
 
     fa2 = FakeAnalyzer()
     chk.prepare_point(FakeModulator(), fa2, cfg, {"index": 0, "freq_mhz": 950.0, "set_dbm": 0})
     assert ("set_center_freq", (950.0 * 1e6,)) in fa2.calls, fa2.calls
     assert not any(c[0] in ("set_bw", "set_center_span") for c in fa2.calls), fa2.calls
     print("power: CHP-scoped nodes OK (set_chp_span/set_chp_bw/set_center_freq/sweep-auto/"
-          "averaging used, generic set_bw/set_center_span not called)")
+          "averaging/baseline-init used, generic set_bw/set_center_span/apply_ext_gain not called)")
 
 
 def test_power_chp_read_retry():
