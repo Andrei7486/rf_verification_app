@@ -256,33 +256,69 @@ Three items, one PR:
 - **Item 2 (R1) — `freq` sent only on change.** The last frequency actually pushed to the
   modulator is tracked; within a frequency block it is not resent. `:FREQ:CENT` on the analyzer is
   unchanged (already cheap, ~2 ms).
-- **Item 3 (R2) — prompt-based transport read.** `transport.py` gains a generic, instrument-agnostic
-  `read_until_regex()` (the caller supplies the pattern); `modulator.py` — the only place that
-  knows the NS CLI's prompt shape, per the module boundary in `DEVELOPMENT_RULES.md` §4 — uses it
-  to return as soon as the prompt is seen instead of always waiting a fixed delay. New key
-  `modulator.dut_prompt_wait_timeout_s`, default `3.0` (seconds) — bounds the read so a missing
-  prompt degrades to a bounded wait rather than hanging, never blocking indefinitely.
-  **Mandatory companion:** new key `power_accuracy.dut_settle_after_power_s`, default `0.5`
-  (seconds) — an explicit dwell after `power <dbm>`, before `:INIT:REST`. Rationale: today ~9 s
-  elapse between `power` and the read purely as a side effect of the per-command overhead this
+- **Item 3 (R2) — prompt-based transport read, per check.** `transport.py` gains a generic,
+  instrument-agnostic `read_until_regex()` (the caller supplies the pattern); `modulator.py` — the
+  only place that knows the NS CLI's prompt shape, per the module boundary in
+  `DEVELOPMENT_RULES.md` §4 — uses it to return as soon as the prompt is seen instead of always
+  waiting a fixed delay. **Gated per check** by new key `use_prompt_read`, resolved from the
+  check's own config section exactly as `ext_gain_db` is (D5) — `power_accuracy.use_prompt_read`
+  default `true`, `flatness.use_prompt_read` and `iq_validation.use_prompt_read` default `false`.
+  `TelnetModulator` supports both modes; the mode is set once per check (`set_prompt_mode()`,
+  called by `session.py` right after `connect()`) and `TelnetModulator` itself never decides it
+  from config. New key `modulator.dut_prompt_wait_timeout_s`, default `3.0` (seconds) — bounds the
+  read so a missing prompt degrades to a bounded wait rather than hanging, never blocking
+  indefinitely. **Mandatory companion:** new key `power_accuracy.dut_settle_after_power_s`, default
+  `0.5` (seconds) — an explicit dwell after `power <dbm>`, before `:INIT:REST`. Rationale: today
+  ~9 s elapse between `power` and the read purely as a side effect of the per-command overhead this
   item removes; 0.5 s is the value from the legacy `modSettings.txt`, which produces correct
-  readings. Without this the modulator may not have settled and levels read low.
+  readings. Without this the modulator may not have settled and levels read low. Criterion 7 below
+  exists specifically to check whether 0.5 s actually holds up once item 3's timing is live, rather
+  than being carried over unverified.
+
+**Correction (pre-merge review of PR #16).** As first implemented, the prompt-based read was a
+class-level override in `TelnetModulator`, shared by all three checks through one modulator
+instance — Flatness and IQ Validation would have silently inherited the new timing despite zero
+diff in their own files (`DEVELOPMENT_RULES.md` §4.2: a check's blast radius stays inside that
+check). Fixed by making `use_prompt_read` a per-check config key, resolved the same way as
+`ext_gain_db`, with `TelnetModulator` supporting both modes but deciding neither — `session.py`
+sets the mode once per run, generically, from the active check's own key. Flatness and IQ
+Validation remain byte-identical to `master` (grep-verified, see the S-M0 PR).
 
 **Constraint.** Does not change `chp_average_count`, the `INIT:REST` computed wait, sweep time
 AUTO, or any CHP-scoped node — D11 is not reopened.
 
-**Acceptance (redefined by the operator during planning — see D18):**
+**Assumption to be confirmed, not yet tested (record only, per operator instruction — see the
+journal).** Item 2 (`freq` sent only on change) assumes `power <dbm>` does not itself disturb the
+DUT's tuned frequency. Untested; criterion 3 below is also the check for this.
+
+**Acceptance (redefined by the operator during planning — see D18; criterion 3 rewritten and 7–8
+added in the pre-merge correction, `DEVELOPMENT_RULES.md` §7.3/§7.4):**
 1. Time from the `--- Point 1/N ---` log line to the last `Measured:` line, single run, 50 MHz
-   only, 0..−30 dBm step 2 (16 points): **under 60 s**. Baseline from the archived log: **219.1 s**.
+   only, 0..−30 dBm step 2 (16 points): **under 60 s**. Baseline from the archived log: **219.1 s**
+   (timing structure only — see criterion 3 for why this baseline is not used for levels).
 2. Setup-phase time (everything before `--- Point 1/N ---`) reported separately, before/after —
    no threshold.
-3. Every `Actual_dBm` within 0.1 dB of the archived baseline, point by point.
+3. **Same-session A/B on the same unit**, 50 MHz, 0..−30 dBm step 2 (16 points) — not a comparison
+   against the archived baseline log, which was captured pre-P0.1 on an uncalibrated unit
+   (`DEVELOPMENT_RULES.md` §7.3, compare like with like):
+   - Run A: `enable_adc_power_check=true`, `use_prompt_read=false` (today's `master` behaviour).
+   - Run B: `enable_adc_power_check=false`, `use_prompt_read=true` (this stage).
+   - Every `Actual_dBm` in run B within 0.1 dB of run A, point by point.
+   - The archived log (`docs/bench/power_accuracy_freqs_20260826-153750.log`) is used for **timing
+     structure only** (criterion 1's baseline), never for absolute levels.
 4. Log shows no `-adc-power` / `get-power` / `top` / `-modulator-config` / `line` between points.
 5. Log shows `MOD freq` once for the block, not 16 times.
 6. `:CORR:SA:GAIN?` read-back still present and matching (per PR #13's mechanism, untouched).
+7. **Settle-time distinguishing test** (`DEVELOPMENT_RULES.md` §7.4 — a comparison where both sides
+   use the same value proves nothing). Repeat run B with `dut_settle_after_power_s = 1.5`. If it
+   agrees with run B at `0.5` within 0.1 dB, `0.5` s is sufficient. If they diverge, `0.5` s is too
+   short and the default must be raised.
+8. **Flatness regression guard.** Run Flatness, 25 points. Confirm the inter-command interval on
+   the modulator is still ~1.4 s — Flatness must be unaffected by this stage's default
+   (`flatness.use_prompt_read = false`).
 
-If acceptance item 3 fails, **Item 3 is reverted on its own** — Items 1 and 2 are R1 and stay, since
-they do not change what the instrument reports.
+If acceptance criterion 3 fails, **Item 3 is reverted on its own** — Items 1 and 2 are R1 and stay,
+since they do not change what the instrument reports.
 
 ---
 

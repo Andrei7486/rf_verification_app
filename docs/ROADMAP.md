@@ -219,7 +219,7 @@ Update the `Status` cell when a stage moves. Allowed values: `planned`, `blocked
 | P0.5 | Archive the post-calibration baseline | P0 | — | 1 | planned | — | — |
 | P0.6 | Supply the legacy IQ `.class` files | P0 | — | 1 | planned | — | — |
 | S0 | Documentation and repository scaffolding | infra | R0 | 1 | in-progress | — | — |
-| S-M0 | Power Accuracy per-point overhead | M | R1+R2 | 2 | in-progress | — | — |
+| S-M0 | Power Accuracy per-point overhead | M | R1+R2 | 2 | in-review | — | — |
 | S1 | Config integrity and drift detection | M | R0 | 1 | planned | — | — |
 | S2 | Immediate response after Start Run | U | R0 | 1 | planned | — | — |
 | S3 | Real-time logs | U | R0 | 2 | planned | — | — |

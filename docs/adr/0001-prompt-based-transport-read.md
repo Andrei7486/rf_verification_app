@@ -69,3 +69,25 @@ Split the primitive from the pattern:
 - **No bounded fallback (wait for the prompt indefinitely).** Rejected — a missing prompt
   (dropped connection, CLI wedged) would hang the run with no recovery; the existing
   transport/SCPI retry policy (D3) assumes bounded operations.
+
+## Annotation — 2026-08-27, pre-merge correction
+
+As first accepted, `TelnetModulator._read_until_prompt()` used the prompt-based read
+unconditionally for every check — a class-level override with no per-check gate. Because all
+three checks share one `TelnetModulator` instance per run, Flatness and IQ Validation would have
+silently inherited the new timing despite zero diff in their own files, violating
+`DEVELOPMENT_RULES.md` §4.2 (a check's blast radius stays inside that check).
+
+Corrected before merge: `use_prompt_read` is now a per-check config key, resolved the same way as
+`ext_gain_db` (D5) — `power_accuracy.use_prompt_read=true`, `flatness.use_prompt_read=false`,
+`iq_validation.use_prompt_read=false`. `TelnetModulator` still supports both modes (the class
+itself is unchanged in that respect) but no longer decides which one from config; it exposes
+`set_prompt_mode(enabled)`, and `session.py` calls it once per run — generically, from
+`resolve_use_prompt_read(cfg, check_key)` — right after `connect()` and before the check's own
+`modulator_setup()`. Neither `flatness.py` nor `iq_validation.py` needed any change: their default
+resolves to `False`, which is `TelnetModulator`'s own default state, so they see exactly today's
+fixed-sleep behaviour whether or not their config section even carries the key.
+
+The original decision (split the primitive from the pattern between `transport.py` and
+`modulator.py`) stands unchanged; this annotation only narrows *who* the prompt-based mode is on
+for and *who* decides it.

@@ -125,3 +125,48 @@ separately with no threshold (criterion 1b).
 **Open.** Bench acceptance (spec §M7, redefined criteria 1–6) not yet run against real hardware —
 pending lab network access. `docs/adr/0001-prompt-based-transport-read.md` and the bench-log
 archive under `docs/bench/` are part of this same entry's close-phase routine.
+
+---
+
+## 2026-08-27 — S-M0: pre-merge correction on PR #16
+
+**Found.** As first implemented, `use_prompt_read` (item 3) was decided at `TelnetModulator` class
+level, shared by all three checks through one modulator instance — Flatness and IQ Validation would
+have silently inherited the new timing despite zero diff in their own files. Flagged as a
+`DEVELOPMENT_RULES.md` §4.2 blast-radius violation (a check's blast radius stays inside that check)
+and a §2.4 violation (a new key's default must reproduce today's behaviour for a check that has not
+explicitly opted in).
+
+**Fixed.** `use_prompt_read` is now a per-check config key, resolved by `base.resolve_use_prompt_read()`
+the same way `ext_gain_db` is resolved (D5): the check's own section wins, absent key falls back to
+`False`. `TelnetModulator` supports both the fixed-sleep and prompt-based reads but decides neither
+itself — `session.py` calls `mod.set_prompt_mode(...)` once per run, generically, right after
+`connect()`. `flatness.py` and `iq_validation.py` needed zero changes (grep-verified, zero diff).
+Defaults: `power_accuracy.use_prompt_read=true`, `flatness.use_prompt_read=false`,
+`iq_validation.use_prompt_read=false`. `use_prompt_read` added to the run log params snapshot for
+every check. `docs/adr/0001-prompt-based-transport-read.md` annotated (not rewritten) with this
+correction.
+
+**Also fixed.** Acceptance criterion 3 rewritten from "compare against the archived pre-P0.1 log"
+to a same-session A/B on the same unit (`DEVELOPMENT_RULES.md` §7.3, compare like with like — the
+archived log's calibration state does not match whatever the unit is at merge time). Criteria 7
+(settle-time distinguishing test, run B at `dut_settle_after_power_s=0.5` vs `1.5` — §7.4, a
+null-valued test proves nothing) and 8 (Flatness regression guard) added.
+
+**Recorded, not acted on.** Item 2 (`freq` sent only on change) assumes `power <dbm>` does not
+disturb the DUT's tuned frequency. Untested assumption — criterion 3's A/B is also the check for
+this.
+
+**Rebase.** PR #15 (S0) is still unmerged at the time of this correction — the rebase of this
+branch onto updated `master` is pending the operator merging #15 first; noted here so it is not
+forgotten once that happens.
+
+**Status.** `ROADMAP.md` S-M0 row set to `in-review` (not `done`), tag column stays `—`. No
+annotated tag, no `CHANGELOG.md` entry — §2.6 is deferred, not waived.
+
+**Standing warning, recorded verbatim as instructed:**
+
+> S-M0 merged without bench acceptance; acceptance criteria 1-8 outstanding.
+> Bench access unavailable at merge time. Power Accuracy results are not to be
+> trusted for production until the A/B in criterion 3 has been run.
+> Flatness and IQ Validation are unaffected by default (use_prompt_read=false).
