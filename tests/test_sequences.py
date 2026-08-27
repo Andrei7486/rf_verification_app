@@ -468,6 +468,47 @@ def test_modulator_prompt_regex():
     print("modulator: prompt regex OK (matches real prompt shapes, no false match on echo)")
 
 
+def test_modulator_prompt_mode_toggle():
+    """S-M0 correction: TelnetModulator supports both the fixed-sleep and the
+    prompt-based read; it does not decide which one from config itself - the caller
+    opts in via set_prompt_mode(). Default is fixed-sleep (today's behaviour), so a
+    connection nobody calls set_prompt_mode() on is unaffected by this stage.
+    """
+    from core.modulator import TelnetModulator
+
+    class FakeIO:
+        def __init__(self):
+            self.regex_calls = 0
+        def read_until_regex(self, pattern, timeout=None, require=False):
+            self.regex_calls += 1
+            return "root@Modem -line- *<1>"
+        def drain(self, wait=0.0):
+            return "drained"
+
+    mod = TelnetModulator({"dut_ip": "x", "dut_telnet_port": 23, "cmd_delay_s": 0}, FakeLog())
+    mod.io = FakeIO()
+    assert mod._read_until_prompt(None) == "drained"
+    mod.set_prompt_mode(True)
+    assert mod._read_until_prompt(None) == "root@Modem -line- *<1>" and mod.io.regex_calls == 1
+    mod.set_prompt_mode(False)
+    assert mod._read_until_prompt(None) == "drained" and mod.io.regex_calls == 1
+    print("modulator: prompt-mode toggle OK (default fixed-sleep, opt-in via set_prompt_mode)")
+
+
+def test_resolve_use_prompt_read():
+    """S-M0 correction: per-check resolution, same shape as resolve_ext_gain() - each
+    check's own section wins, an absent key falls back to False (today's fixed-sleep
+    behaviour), never inherited from another check's setting.
+    """
+    cfg = json.loads(json.dumps(load_cfg()))
+    assert check_base.resolve_use_prompt_read(cfg, "power_accuracy") is True
+    assert check_base.resolve_use_prompt_read(cfg, "flatness") is False
+    assert check_base.resolve_use_prompt_read(cfg, "iq_validation") is False
+    cfg["flatness"].pop("use_prompt_read", None)
+    assert check_base.resolve_use_prompt_read(cfg, "flatness") is False
+    print("base: resolve_use_prompt_read OK (per-check, absent key -> False)")
+
+
 def test_power_freq_change_tracker():
     """S-M0 item 2: 'freq' is resent only when it actually changes within a block -
     suppressed on a repeat at the same frequency, resent again at a block boundary.
@@ -608,6 +649,8 @@ if __name__ == "__main__":
     test_power_adc_cross_check()
     test_power_atten_and_points()
     test_modulator_prompt_regex()
+    test_modulator_prompt_mode_toggle()
+    test_resolve_use_prompt_read()
     test_power_freq_change_tracker()
     test_iq_analyzer_setup()
     test_iq_marker_delta_sequence()
