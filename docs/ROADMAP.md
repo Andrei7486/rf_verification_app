@@ -18,10 +18,11 @@ run all three checks on the bench and continue production work. See spec §2 (re
  you are here
 ```
 
-**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S-M0 preempts
-the queue** (operator-directed, out of stage order): Power Accuracy's per-point overhead measured at
-5.5x the legacy tool, root-caused and fixed against the archived bench log while P0.1 is still
-running — see the stage entry below. Stacked on the still-unmerged S0 branch/PR.
+**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S0 and S-M0 are
+merged to `master`** (2026-08-27). S-M0 (Power Accuracy per-point overhead, operator-directed, out
+of stage order) is **`in-review`, not `done`** — merged ahead of its own bench acceptance, on
+explicit operator instruction; see `docs/JOURNAL.md` 2026-08-27 for the standing warning this
+carries and the acceptance criteria (spec §M7) still outstanding.
 
 **Runtime:** the app currently runs from Andrei's laptop (Windows 11 x64), on the lab network with
 the CXA and the DUT. NSLAB04-PC (Windows 7 32-bit) remains a possible future deployment, so the
