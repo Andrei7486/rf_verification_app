@@ -35,6 +35,17 @@ class _BaseModulator:
         self.log = log
         self.delay = float(cfg.get("cmd_delay_s", 0.4))
         self.prompt_timeout = float(cfg.get("dut_prompt_wait_timeout_s", 3.0))
+        # Off by default = today's fixed-sleep behaviour. Never set from config by this
+        # class itself - the caller (session.py, per check) opts in via
+        # set_prompt_mode(), so flatness/iq_validation stay unaffected without needing
+        # any change of their own (S-M0 correction: this was check-blind before).
+        self.use_prompt_read = False
+
+    def set_prompt_mode(self, enabled):
+        """Opt this connection in (or out) of the prompt-based read. Set once per
+        check, before that check sends any command - see session.py.
+        """
+        self.use_prompt_read = bool(enabled)
 
     def send(self, cmd, wait=None):
         """Send a CLI command. Sub-classes implement _write()/_read()/
@@ -103,11 +114,16 @@ class TelnetModulator(_BaseModulator):
         return self.io.drain(wait=0.2)
 
     def _read_until_prompt(self, wait):
-        """Return as soon as the NS CLI prompt is seen, instead of always
-        waiting the full fixed delay - bench-measured at ~1.4 s/command before
-        this (S-M0). Bounded by dut_prompt_wait_timeout_s so a prompt that
-        never appears degrades to a bounded wait rather than hanging.
+        """Prompt-based read when use_prompt_read is on (bench-measured at ~1.4
+        s/command with the inherited fixed sleep, before S-M0); otherwise the base
+        class's fixed-sleep default, unchanged. This class does not decide the mode
+        itself - it only acts on what set_prompt_mode() was last called with, so the
+        same class serves every check regardless of which behaviour it wants.
+        Bounded by dut_prompt_wait_timeout_s so a prompt that never appears degrades
+        to a bounded wait rather than hanging.
         """
+        if not self.use_prompt_read:
+            return super()._read_until_prompt(wait)
         return self.io.read_until_regex(_PROMPT_RE, timeout=self.prompt_timeout)
 
     def close(self):

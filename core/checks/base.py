@@ -90,6 +90,17 @@ def read_adc_power(mod):
     return nums[-1] if nums else None
 
 
+def resolve_use_prompt_read(cfg, check_key):
+    """Whether this check's modulator commands use the prompt-based transport read
+    (S-M0 item 3) instead of the legacy fixed sleep. Per-check key, resolved the same
+    way as resolve_ext_gain() below - except there is no shared global fallback here:
+    unlike ext_gain_db, the three checks do not agree on one sensible default, so an
+    absent key means False (today's fixed-sleep behaviour), never inherited from
+    another check or from a modulator-wide setting.
+    """
+    return bool(cfg.get(check_key, {}).get("use_prompt_read", False))
+
+
 def resolve_ext_gain(cfg, check_key):
     """This check's external gain: its own <check>.ext_gain_db if configured, else the
     global analyzer.ext_gain_db. An absent per-check key falls back to the global
