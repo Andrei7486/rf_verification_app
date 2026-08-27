@@ -34,6 +34,15 @@ class RunSession:
         # might differ from it (e.g. power_accuracy's own ext_gain_db=0 override).
         snap["ext_gain_db"] = check_base.resolve_ext_gain(self.cfg, self.check.key)
         snap["dut_conn_type"] = self.cfg["modulator"].get("dut_conn_type")
+        # S-M0: modulator-section key (like dut_conn_type above), not covered by the
+        # per-check loop over cfg[self.check.key] - added explicitly so it's visible
+        # in the run header for any check that talks to the modulator.
+        snap["dut_prompt_wait_timeout_s"] = self.cfg["modulator"].get(
+            "dut_prompt_wait_timeout_s", 3.0)
+        # S-M0 correction: explicit per-check resolution (not just whatever happens to
+        # be in cfg[self.check.key]) so the header is correct even if a check's config
+        # section is missing the key - mirrors ext_gain_db's explicit line above.
+        snap["use_prompt_read"] = check_base.resolve_use_prompt_read(self.cfg, self.check.key)
         snap["mode"] = self.mode
         return snap
     def _point_view(self):
@@ -73,6 +82,10 @@ class RunSession:
                 self.cxa.connect()
                 self.mod = make_modulator(self.cfg["modulator"], self.rlog.logger)
                 self.mod.connect()
+                # Per-check opt-in (S-M0 correction), set generically here so no check
+                # module has to know about it - flatness/iq_validation stay untouched
+                # and default to the fixed-sleep read via the modulator's own default.
+                self.mod.set_prompt_mode(check_base.resolve_use_prompt_read(self.cfg, check_key))
                 self.check.modulator_setup(self.mod, self.cfg)
                 self.check.analyzer_setup(self.cxa, self.cfg, self.points)
             except Exception as exc:

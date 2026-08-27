@@ -25,6 +25,7 @@
     "res_bw_hz": 3000000,
     "scale_div_db": 2,
     "span_margin_mhz": 30,
+    "use_prompt_read": false,
     "video_bw_hz": 10000
   },
   "general": {
@@ -60,6 +61,7 @@
     "span_hz": 2500000,
     "use_legacy_nav": true,
     "use_max_hold": false,
+    "use_prompt_read": false,
     "video_bw_hz": 3000
   },
   "modulator": {
@@ -70,12 +72,15 @@
     "dut_conn_type": "telnet",
     "dut_ip": "192.168.0.50",
     "dut_password": "novelsat",
+    "dut_prompt_wait_timeout_s": 3.0,
     "dut_telnet_port": 23,
     "dut_user": "admin"
   },
   "power_accuracy": {
     "chp_integ_bw_hz": 5000000,
+    "dut_settle_after_power_s": 0.5,
     "dwell_s": 0.3,
+    "enable_adc_power_check": false,
     "ext_gain_db": 0,
     "if_atten_db": 5.7,
     "if_max_mhz": 180,
@@ -88,6 +93,7 @@
     "res_bw_hz": 41000,
     "span_hz": 8000000,
     "sweep_time_s": 0.04,
+    "use_prompt_read": true,
     "video_bw_hz": 1000
   }
 }

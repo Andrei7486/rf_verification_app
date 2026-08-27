@@ -269,6 +269,7 @@ def test_power_chp_scoped_nodes():
     assert fa.calls.index(("set_ext_gain", (0,))) < fa.calls.index(("set_chp_span", (pa["span_hz"],))), fa.calls
 
     fa2 = FakeAnalyzer()
+    cfg["power_accuracy"]["dut_settle_after_power_s"] = 0  # keep this test fast
     chk.prepare_point(FakeModulator(), fa2, cfg, {"index": 0, "freq_mhz": 950.0, "set_dbm": 0})
     assert ("set_center_freq", (950.0 * 1e6,)) in fa2.calls, fa2.calls
     assert not any(c[0] in ("set_bw", "set_center_span") for c in fa2.calls), fa2.calls
@@ -380,17 +381,36 @@ def test_power_atten_interpolation():
 
 
 def test_power_adc_cross_check():
-    """Stage 5: DUT-side ADC power cross-check is read per point (diagnostic only,
-    independent of the CXA reading), flows through to the CSV column, is gated by
-    read_adc_power (default on), and - bench-confirmed 2026-08-26 - always navigates
-    back to -line- afterward (even on a read failure), since -adc-power leaves the CLI
-    parked in a submenu where the *next* point's freq/power would otherwise fail.
+    """S-M0 item 1: DUT-side ADC power cross-check is gated by
+    enable_adc_power_check, default OFF (was 'read_adc_power', default on -
+    renamed, default flipped, per the S-M0 ADR). Off by default -> no DUT-side
+    read, and the modulator never leaves -line- at all (not just 'navigates
+    back' - it never enters -adc-power- in the first place). Explicitly turned
+    on -> reads per point (diagnostic only, independent of the CXA reading),
+    flows through to the CSV column, and - bench-confirmed 2026-08-26 -
+    always navigates back to -line- afterward (even on a read failure), since
+    -adc-power leaves the CLI parked in a submenu where the *next* point's
+    freq/power would otherwise fail.
     """
-    cfg = load_cfg(); chk = get_check("power_accuracy")()
+    cfg = json.loads(json.dumps(load_cfg()))
+    cfg["power_accuracy"]["dut_settle_after_power_s"] = 0  # keep this test fast
+    chk = get_check("power_accuracy")()
     fa = FakeAnalyzer()
-    point = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
+
+    # Default (no override) -> off. No DUT-side read, -line- never left.
+    fm_default = FakeModulator(replies={"get-power": "power: -12.34 dBm"})
+    point_default = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
+    chk.prepare_point(fm_default, fa, cfg, point_default)
+    assert not any(c in ("-adc-power", "get-power", "top", "-modulator-config", "line")
+                   for c in fm_default.sent), fm_default.sent
+    assert point_default.get("adc_power_dbm") is None, point_default
+
+    # Explicitly on.
+    cfg_on = json.loads(json.dumps(cfg))
+    cfg_on["power_accuracy"]["enable_adc_power_check"] = True
     fm = FakeModulator(replies={"get-power": "power: -12.34 dBm"})
-    chk.prepare_point(fm, fa, cfg, point)
+    point = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
+    chk.prepare_point(fm, fa, cfg_on, point)
     assert "-adc-power" in fm.sent and "get-power" in fm.sent, fm.sent
     assert point["adc_power_dbm"] == "-12.34", point
     assert fm.sent[-3:] == ["top", "-modulator-config", "line"], fm.sent
@@ -398,24 +418,16 @@ def test_power_adc_cross_check():
     # Navigation back happens even when the ADC read itself fails.
     fm_fail = FakeModulator(fail_on_cmd="get-power")
     point_fail = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
-    chk.prepare_point(fm_fail, fa, cfg, point_fail)
+    chk.prepare_point(fm_fail, fa, cfg_on, point_fail)
     assert point_fail.get("adc_power_dbm") is None, point_fail
     assert fm_fail.sent[-3:] == ["top", "-modulator-config", "line"], fm_fail.sent
 
-    meas = chk.measure_point(fa, cfg, point, "auto", {})
+    meas = chk.measure_point(fa, cfg_on, point, "auto", {})
     assert meas.get("adc_power_dbm") == "-12.34", meas
     row = chk.row_for({"point": point, "meas": meas, "eval": {}})
     assert row["ADC_Power_dBm"] == "-12.34", row
-
-    # Gated off -> no DUT-side read at all.
-    cfg_off = json.loads(json.dumps(cfg))
-    cfg_off["power_accuracy"]["read_adc_power"] = False
-    fm2 = FakeModulator(replies={"get-power": "power: -12.34 dBm"})
-    point2 = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
-    chk.prepare_point(fm2, fa, cfg_off, point2)
-    assert not any(c in ("-adc-power", "get-power") for c in fm2.sent), fm2.sent
-    assert point2.get("adc_power_dbm") is None, point2
-    print("power: ADC cross-check OK (read per point, flows to CSV column, gate skips it when off)")
+    print("power: ADC cross-check OK (off by default - line never left, on - reads "
+          "per point and flows to CSV, navigates back even on failure)")
 
 
 def test_power_atten_and_points():
@@ -432,6 +444,93 @@ def test_power_atten_and_points():
     m_lb = chk.measure_point(fa, cfg, {"freq_mhz": 950, "set_dbm": 0}, "manual", {"measured_dbm": -lb_atten})
     assert abs(m_if["measured_dbm"]) < 1e-6 and abs(m_lb["measured_dbm"]) < 1e-6
     print("power: OK (multi-freq points, IF/L-band attenuator compensation)")
+
+
+def test_modulator_prompt_regex():
+    """S-M0 item 3: the NS CLI prompt matcher recognises 'root@Modem -line- *<7>',
+    tolerates \\r\\r\\n framing and a 'Configuring device...Done.' interlude between
+    the anchor and the counter, and does not false-match on command echo alone.
+    Synthetic fixtures only (no real log text), per DEVELOPMENT_RULES.md §7.7.
+    """
+    from core.modulator import _PROMPT_RE
+    assert _PROMPT_RE.search("root@Modem -line- *<7>")
+    assert _PROMPT_RE.search("root@Modem -- *<1>")
+    assert _PROMPT_RE.search("root@Modem -modulator-config- *<3>")
+    # \r\r\n framing between the write and the prompt line.
+    assert _PROMPT_RE.search("MOD << freq 950.0\r\r\nroot@Modem -line- *<9>")
+    # "Configuring device, Please wait ........Done." interlude before the prompt.
+    assert _PROMPT_RE.search(
+        "roll-off 0.25\r\r\n\r\nConfiguring device, Please wait ........Done.\r\r\n"
+        "root@Modem -line- *<8>")
+    # Command echo alone - no "root@Modem"/"*<N>" - must not false-match.
+    assert not _PROMPT_RE.search("MOD >> power 0.0")
+    assert not _PROMPT_RE.search("command not found")
+    print("modulator: prompt regex OK (matches real prompt shapes, no false match on echo)")
+
+
+def test_modulator_prompt_mode_toggle():
+    """S-M0 correction: TelnetModulator supports both the fixed-sleep and the
+    prompt-based read; it does not decide which one from config itself - the caller
+    opts in via set_prompt_mode(). Default is fixed-sleep (today's behaviour), so a
+    connection nobody calls set_prompt_mode() on is unaffected by this stage.
+    """
+    from core.modulator import TelnetModulator
+
+    class FakeIO:
+        def __init__(self):
+            self.regex_calls = 0
+        def read_until_regex(self, pattern, timeout=None, require=False):
+            self.regex_calls += 1
+            return "root@Modem -line- *<1>"
+        def drain(self, wait=0.0):
+            return "drained"
+
+    mod = TelnetModulator({"dut_ip": "x", "dut_telnet_port": 23, "cmd_delay_s": 0}, FakeLog())
+    mod.io = FakeIO()
+    assert mod._read_until_prompt(None) == "drained"
+    mod.set_prompt_mode(True)
+    assert mod._read_until_prompt(None) == "root@Modem -line- *<1>" and mod.io.regex_calls == 1
+    mod.set_prompt_mode(False)
+    assert mod._read_until_prompt(None) == "drained" and mod.io.regex_calls == 1
+    print("modulator: prompt-mode toggle OK (default fixed-sleep, opt-in via set_prompt_mode)")
+
+
+def test_resolve_use_prompt_read():
+    """S-M0 correction: per-check resolution, same shape as resolve_ext_gain() - each
+    check's own section wins, an absent key falls back to False (today's fixed-sleep
+    behaviour), never inherited from another check's setting.
+    """
+    cfg = json.loads(json.dumps(load_cfg()))
+    assert check_base.resolve_use_prompt_read(cfg, "power_accuracy") is True
+    assert check_base.resolve_use_prompt_read(cfg, "flatness") is False
+    assert check_base.resolve_use_prompt_read(cfg, "iq_validation") is False
+    cfg["flatness"].pop("use_prompt_read", None)
+    assert check_base.resolve_use_prompt_read(cfg, "flatness") is False
+    print("base: resolve_use_prompt_read OK (per-check, absent key -> False)")
+
+
+def test_power_freq_change_tracker():
+    """S-M0 item 2: 'freq' is resent only when it actually changes within a block -
+    suppressed on a repeat at the same frequency, resent again at a block boundary.
+    """
+    cfg = json.loads(json.dumps(load_cfg()))
+    cfg["power_accuracy"]["dut_settle_after_power_s"] = 0  # keep this test fast
+    chk = get_check("power_accuracy")()
+    fa = FakeAnalyzer(); fm = FakeModulator()
+    p1 = {"index": 0, "freq_mhz": 950.0, "set_dbm": 0}
+    p2 = {"index": 1, "freq_mhz": 950.0, "set_dbm": -2}   # same block, same freq
+    p3 = {"index": 2, "freq_mhz": 1000.0, "set_dbm": 0}   # new block
+
+    chk.prepare_point(fm, fa, cfg, p1)
+    assert fm.sent.count("freq 950.0") == 1, fm.sent
+
+    chk.prepare_point(fm, fa, cfg, p2)
+    assert fm.sent.count("freq 950.0") == 1, fm.sent  # not resent on repeat
+
+    chk.prepare_point(fm, fa, cfg, p3)
+    assert fm.sent.count("freq 1000.0") == 1, fm.sent  # resent at the block boundary
+    assert fm.sent.count("power 0") == 2 and fm.sent.count("power -2") == 1, fm.sent
+    print("power: freq-change tracker OK (resends on change, suppresses on repeat)")
 
 
 # ------------------------------------------------------------- iq validation
@@ -549,6 +648,10 @@ if __name__ == "__main__":
     test_power_atten_interpolation()
     test_power_adc_cross_check()
     test_power_atten_and_points()
+    test_modulator_prompt_regex()
+    test_modulator_prompt_mode_toggle()
+    test_resolve_use_prompt_read()
+    test_power_freq_change_tracker()
     test_iq_analyzer_setup()
     test_iq_marker_delta_sequence()
     test_ext_gain_resolution_and_fallback()
