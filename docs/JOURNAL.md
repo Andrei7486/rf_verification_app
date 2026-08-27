@@ -170,3 +170,31 @@ annotated tag, no `CHANGELOG.md` entry — §2.6 is deferred, not waived.
 > Bench access unavailable at merge time. Power Accuracy results are not to be
 > trusted for production until the A/B in criterion 3 has been run.
 > Flatness and IQ Validation are unaffected by default (use_prompt_read=false).
+
+---
+
+## 2026-08-27 — PR #15 and PR #16 merged
+
+**Merged.** PR #15 (S0) merged into `master` on operator instruction. `stage/s-m0-power-accuracy-overhead`
+rebased onto the updated `master` — clean, no conflicts, re-verified afterward (compile clean, all
+20 offline tests pass, grep against `flatness.py`/`iq_validation.py` still empty). PR #16 retargeted
+from `stage/s0-documentation-scaffolding` to `master` and, on explicit operator instruction, merged
+the same day — **before bench acceptance criteria 1–8 were run.**
+
+Before merging, the operator was shown the standing warning above (PR #16's own description said
+"do not merge until acceptance criteria 1–8 have been run") and confirmed merging anyway. This is
+recorded as an explicit operator override, not an oversight: `power_accuracy.use_prompt_read=true`
+is now the default on `master`, so the next Power Accuracy run on the laptop uses the unverified
+prompt-based read and freq-on-change logic in production. `flatness.use_prompt_read` and
+`iq_validation.use_prompt_read` stay `false`, so Flatness and IQ Validation are unaffected.
+
+**The standing warning above still applies and is not superseded by the merge** — merging to
+`master` is not the same as bench acceptance under this project's Definition of Done (§5): no
+annotated tag was applied, no `CHANGELOG.md` entry was written, and `ROADMAP.md`'s S-M0 row stays
+`in-review`, not `done`. Criteria 1–8 remain outstanding and should be run at the next bench
+session; if criterion 3 fails, item 3 (the prompt-based read, `use_prompt_read`) is the one to
+revert — flip `power_accuracy.use_prompt_read` back to `false`, no code change required.
+
+**Housekeeping.** Both stage branches (`stage/s0-documentation-scaffolding`,
+`stage/s-m0-power-accuracy-overhead`) deleted, locally and on `origin`, per `DEVELOPMENT_RULES.md`
+§6 (merge to `master`, delete after merge).
