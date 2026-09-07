@@ -86,7 +86,9 @@ class FlatnessCheck:
                                  point["freq_mhz"], extra, self._sweep_time_s, dwell)
                     time.sleep(extra)
     def measure_point(self, cxa, cfg, point, mode, manual):
-        fc = cfg["flatness"]; atten = float(fc.get("lband_atten_db", 0))
+        # M6: cfg is always merged against config.defaults.json (config_store.load_config()),
+        # so a missing key reads as the shipped default here, never a silent 0.
+        fc = cfg["flatness"]; atten = float(fc["lband_atten_db"])
         if point.get("_prepare_error"):
             return {"error": point["_prepare_error"]}
         if mode == "auto":
