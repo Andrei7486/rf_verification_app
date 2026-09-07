@@ -1,0 +1,29 @@
+name: CI
+
+# D16: minimal CI, folded into S1 (the first stage producing offline-testable
+# logic). Lint + the offline test suite, on every push. No Docker, no browser
+# tests - the bench is the integration suite (DEVELOPMENT_RULES.md Sec.7.1).
+#
+# Runs on ubuntu-latest under Python 3.8, matching the compatibility floor
+# (CLAUDE.md, DEVELOPMENT_RULES.md Sec.2) - not to stand in for the real win32
+# bench target (a Linux runner can't), but so 3.9+-only syntax an editor's newer
+# local interpreter would silently accept fails here instead of on the bench.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Lint
+        run: ruff check .
+      - name: Offline test suite
+        run: python -m tests.test_sequences

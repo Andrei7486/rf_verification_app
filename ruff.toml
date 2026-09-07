@@ -1,0 +1,17 @@
+# Lint config for CI only - never shipped to the bench, never a runtime dependency.
+# Target matches the app's compatibility floor (CLAUDE.md, DEVELOPMENT_RULES.md Sec.2):
+# Python 3.8, so ruff flags syntax/APIs that would break on the portable 3.8.10 win32
+# interpreter even though this repo is developed on a newer local interpreter.
+target-version = "py38"
+
+# get-pip.py and the vendored python/ runtime (bundled, not authored here) are not
+# this project's code and are exempt.
+exclude = ["get-pip.py", "python/", "build/", "dist/"]
+
+[lint]
+# Pyflakes only (correctness: unused imports/vars, undefined names, etc.) -
+# deliberately NOT pycodestyle ("E"). This codebase has an established compact
+# style (semicolon-joined statements, lines well past 88 chars) used consistently
+# throughout - fighting that with a linter would mean either reformatting the whole
+# repo (DEVELOPMENT_RULES.md Sec.9.7: no tidying outside scope) or permanent noise.
+select = ["F"]
