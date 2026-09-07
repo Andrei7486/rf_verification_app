@@ -22,3 +22,23 @@ log is a baseline for and any caveat on the numbers in it.
   criterion 3 (parity within 0.1 dB against the optimised run) — parity there means "the
   optimised code reproduces what the unoptimised code reported", not "the values are absolutely
   correct".
+
+---
+
+## `power_accuracy_NS330_20260827-130957_serial-runA.{log,csv,json}` and
+## `power_accuracy_NS330_20260827-131303_serial-runB.{log,csv,json}`
+
+**S-M0 partial bench test, run over `SerialModulator` (COM5), not `TelnetModulator`** — the
+telnet path was unreachable at the time (unrelated station configuration issue, per the operator).
+Same-session A/B per spec §M7 criterion 3, 50 MHz / 0..−30 dBm / step 2 (16 points):
+
+- Run A (`...130957`, `13:10:13`–`13:12:10`): `enable_adc_power_check=true`,
+  `use_prompt_read=false`. Verdict PASS.
+- Run B (`...131303`, `13:13:19`–`13:14:13`): `enable_adc_power_check=false`,
+  `use_prompt_read=true`. Verdict PASS. Max point-by-point `|A−B|` = 0.07 dB.
+
+**Operator-unconfirmed at the time it was run** — recorded here as what happened and what the
+files show, not as an operator-witnessed bench acceptance. `use_prompt_read` has no effect on
+`SerialModulator` (it only branches `TelnetModulator._read_until_prompt()`), so this run bears on
+items 1 and 2 only — it does **not** exercise item 3 (the prompt-based read) and does not close
+criterion 3's telnet case. See `docs/JOURNAL.md` 2026-08-27 and 2026-09-07.

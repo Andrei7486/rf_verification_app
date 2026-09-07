@@ -1,0 +1,145 @@
+{
+  "columns": [
+    "Frequency_MHz",
+    "Set_dBm",
+    "Actual_dBm",
+    "Deviation_dB",
+    "ADC_Power_dBm",
+    "Result"
+  ],
+  "rows": [
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": 0.0,
+      "Actual_dBm": 0.1,
+      "Deviation_dB": 0.1,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -2.0,
+      "Actual_dBm": -1.97,
+      "Deviation_dB": 0.03,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -4.0,
+      "Actual_dBm": -3.95,
+      "Deviation_dB": 0.05,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -6.0,
+      "Actual_dBm": -5.91,
+      "Deviation_dB": 0.09,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -8.0,
+      "Actual_dBm": -7.88,
+      "Deviation_dB": 0.12,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -10.0,
+      "Actual_dBm": -10.01,
+      "Deviation_dB": -0.01,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -12.0,
+      "Actual_dBm": -11.95,
+      "Deviation_dB": 0.05,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -14.0,
+      "Actual_dBm": -13.92,
+      "Deviation_dB": 0.08,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -16.0,
+      "Actual_dBm": -15.88,
+      "Deviation_dB": 0.12,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -18.0,
+      "Actual_dBm": -18.02,
+      "Deviation_dB": -0.02,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -20.0,
+      "Actual_dBm": -19.98,
+      "Deviation_dB": 0.02,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -22.0,
+      "Actual_dBm": -21.93,
+      "Deviation_dB": 0.07,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -24.0,
+      "Actual_dBm": -23.89,
+      "Deviation_dB": 0.11,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -26.0,
+      "Actual_dBm": -25.79,
+      "Deviation_dB": 0.21,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -28.0,
+      "Actual_dBm": -27.92,
+      "Deviation_dB": 0.08,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    },
+    {
+      "Frequency_MHz": 50.0,
+      "Set_dBm": -30.0,
+      "Actual_dBm": -29.97,
+      "Deviation_dB": 0.03,
+      "ADC_Power_dBm": "",
+      "Result": "PASS"
+    }
+  ],
+  "summary": {
+    "verdict": "PASS",
+    "tolerance_db": 0.8,
+    "steps": 16
+  }
+}

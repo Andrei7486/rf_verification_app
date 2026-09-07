@@ -18,11 +18,16 @@ run all three checks on the bench and continue production work. See spec §2 (re
  you are here
 ```
 
-**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S0 and S-M0 are
-merged to `master`** (2026-08-27). S-M0 (Power Accuracy per-point overhead, operator-directed, out
-of stage order) is **`in-review`, not `done`** — merged ahead of its own bench acceptance, on
-explicit operator instruction; see `docs/JOURNAL.md` 2026-08-27 for the standing warning this
-carries and the acceptance criteria (spec §M7) still outstanding.
+**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S0 and S-M0's
+code are merged to `master`.** S-M0 (Power Accuracy per-point overhead, operator-directed, out of
+stage order) is **closed `done-unverified`, accepted `deferred`** (2026-09-07) — closed for
+workflow purposes so S1 can proceed, without its bench acceptance criteria having been run (no
+instrument access at close time). Tag `v0.7.0` is reserved for this closure but **not yet applied**
+in git — per `DEVELOPMENT_RULES.md` §6 it is applied to `master` after this closure's own docs PR
+merges, not before (see the 2026-09-07 journal entry). The verification debt itself is tracked as
+**S-M0-V**, open in the stage table below. See `docs/JOURNAL.md` 2026-09-07 for the operator
+decision and what remains outstanding, and 2026-08-27 for a partial, operator-unconfirmed
+serial-only A/B that is not a substitute for S-M0-V.
 
 **Runtime:** the app currently runs from Andrei's laptop (Windows 11 x64), on the lab network with
 the CXA and the DUT. NSLAB04-PC (Windows 7 32-bit) remains a possible future deployment, so the
@@ -86,6 +91,23 @@ of the P0 calibration gate, and the fix does not depend on P0 completing.
 50 MHz/16-point block; setup phase reported separately, no threshold; value parity within 0.1 dB;
 no ADC/nav commands between points; `MOD freq` once per block, not once per point;
 `:CORR:SA:GAIN?` read-back unchanged. If value parity fails, item 3 alone reverts.
+**Closed `done-unverified`, 2026-09-07, tag `v0.7.0` reserved (applied to `master` once this
+closure's own docs PR merges — `DEVELOPMENT_RULES.md` §6)** — merged and closed for workflow
+purposes so S1 could proceed; bench acceptance criteria 1–8 were **not** executed as an
+operator-witnessed run (no instrument access at close time). See `docs/JOURNAL.md` 2026-09-07 and
+S-M0-V below.
+
+### S-M0-V — S-M0 bench acceptance (criteria 1-8)
+Req: **M7** · Risk: — · Est: small
+Not new work — the verification debt S-M0 was closed with. Runs spec §M7's acceptance criteria
+1–8 against real hardware, as an operator-witnessed bench acceptance: same-session A/B (criterion
+3 — a partial, operator-unconfirmed serial run exists from 2026-08-27, see the journal, but not
+yet over telnet, where item 3's prompt-based read actually applies), the settle-time distinguishing
+test (criterion 7, `dut_settle_after_power_s` unverified), and the Flatness regression guard
+(criterion 8).
+**Closes when:** all 8 criteria have been run and their results recorded in `docs/JOURNAL.md`;
+`ROADMAP.md`'s S-M0 row is then updated from `done-unverified`/`deferred` to `done` with the actual
+bench-accepted date.
 
 ### S1 — Config integrity and drift detection
 Req: **M6** · Risk: R0 · Est: small
@@ -207,7 +229,14 @@ offline-testable logic, so it is the first stage where a CI run means anything.
 at load time, so the tracker cannot go stale: there is no separate data file to update.
 
 Update the `Status` cell when a stage moves. Allowed values: `planned`, `blocked`, `in-progress`,
-`in-review`, `done`. `Weight` drives the percentage: `1` small, `2` medium, `4` large.
+`in-review`, `done`, `done-unverified`. `Weight` drives the percentage: `1` small, `2` medium,
+`4` large.
+
+`done-unverified`: merged and closed for workflow purposes; bench acceptance criteria not
+executed. Distinct from `done`, which additionally requires the stage's bench acceptance criteria
+to have been run per `DEVELOPMENT_RULES.md` §5. A stage closed `done-unverified` carries a
+verification debt, tracked as its own follow-up stage (see e.g. S-M0-V below) — it is not
+"finished", it is "shipped ahead of proof, by explicit operator decision".
 
 <!-- STAGES:BEGIN -->
 
@@ -220,7 +249,8 @@ Update the `Status` cell when a stage moves. Allowed values: `planned`, `blocked
 | P0.5 | Archive the post-calibration baseline | P0 | — | 1 | planned | — | — |
 | P0.6 | Supply the legacy IQ `.class` files | P0 | — | 1 | planned | — | — |
 | S0 | Documentation and repository scaffolding | infra | R0 | 1 | in-progress | — | — |
-| S-M0 | Power Accuracy per-point overhead | M | R1+R2 | 2 | in-review | — | — |
+| S-M0 | Power Accuracy per-point overhead | M | R1+R2 | 2 | done-unverified | v0.7.0 | deferred |
+| S-M0-V | S-M0 bench acceptance (criteria 1-8) | M | — | 1 | planned | — | — |
 | S1 | Config integrity and drift detection | M | R0 | 1 | planned | — | — |
 | S2 | Immediate response after Start Run | U | R0 | 1 | planned | — | — |
 | S3 | Real-time logs | U | R0 | 2 | planned | — | — |
