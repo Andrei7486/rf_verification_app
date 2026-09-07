@@ -18,16 +18,17 @@ run all three checks on the bench and continue production work. See spec §2 (re
  you are here
 ```
 
-**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S0 and S-M0's
-code are merged to `master`.** S-M0 (Power Accuracy per-point overhead, operator-directed, out of
-stage order) is **closed `done-unverified`, accepted `deferred`** (2026-09-07) — closed for
-workflow purposes so S1 can proceed, without its bench acceptance criteria having been run (no
-instrument access at close time). Tag `v0.7.0` is reserved for this closure but **not yet applied**
-in git — per `DEVELOPMENT_RULES.md` §6 it is applied to `master` after this closure's own docs PR
-merges, not before (see the 2026-09-07 journal entry). The verification debt itself is tracked as
-**S-M0-V**, open in the stage table below. See `docs/JOURNAL.md` 2026-09-07 for the operator
-decision and what remains outstanding, and 2026-08-27 for a partial, operator-unconfirmed
-serial-only A/B that is not a substitute for S-M0-V.
+**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S0 and S-M0
+are merged to `master`, tag `v0.7.0` applied** (2026-09-07, per `DEVELOPMENT_RULES.md` §6, on
+`master` after the closure PR merged — see the journal). S-M0 itself is **closed
+`done-unverified`, accepted `deferred`** — closed for workflow purposes without its bench
+acceptance criteria having been run (no instrument access at close time). The verification debt is
+tracked as **S-M0-V**, open in the stage table below; see `docs/JOURNAL.md` 2026-09-07 for the
+operator decision and what remains outstanding, and 2026-08-27 for a partial,
+operator-unconfirmed serial-only A/B that is not a substitute for S-M0-V.
+
+**S1 (config integrity and drift, D16 CI folded in) is implemented, in review** — see the stage
+entry below and the 2026-09-07 journal entry.
 
 **Runtime:** the app currently runs from Andrei's laptop (Windows 11 x64), on the lab network with
 the CXA and the DUT. NSLAB04-PC (Windows 7 32-bit) remains a possible future deployment, so the
@@ -110,11 +111,18 @@ test (criterion 7, `dut_settle_after_power_s` unverified), and the Flatness regr
 bench-accepted date.
 
 ### S1 — Config integrity and drift detection
-Req: **M6** · Risk: R0 · Est: small
+Req: **M6** · Risk: R0 · Est: small · Includes D16 (minimal CI, folded in per this roadmap)
 Full parameter block in the run log, effective-vs-default diff at run start, config version stamp.
 **Why first:** it is the prerequisite for trusting every comparison made in later stages, and it
-closes a standing open item that has already cost one unexplained 5–6 dB discrepancy.
+gives future drift the visibility that would have caught it earlier — it does not retroactively
+explain the historical, still-unresolved 5–6 dB discrepancy (that stays a recorded hypothesis,
+`POWER_ACCURACY_HANDOFF.md` §9).
 **Accept:** remove a key on the bench — the log names it and the documented default is used.
+**Implemented, in review, 2026-09-07.** `config/config.defaults.json` (new, committed) + a
+load_config() merge (§M6 spec note, ADR 0002) + `diff_against_defaults()`, logged at run start and
+stamped (`config_version`) into every result file. Two pre-existing `.get(key, 0)` fallbacks fixed
+as part of this stage (operator decision) — see the journal. D16's CI workflow ships in the same
+PR, per this roadmap's own instruction that it folds into S1.
 
 ### S2 — Immediate response after Start Run
 Req: **U2** · Risk: R0 · Est: small
@@ -251,7 +259,7 @@ verification debt, tracked as its own follow-up stage (see e.g. S-M0-V below) �
 | S0 | Documentation and repository scaffolding | infra | R0 | 1 | in-progress | — | — |
 | S-M0 | Power Accuracy per-point overhead | M | R1+R2 | 2 | done-unverified | v0.7.0 | deferred |
 | S-M0-V | S-M0 bench acceptance (criteria 1-8) | M | — | 1 | planned | — | — |
-| S1 | Config integrity and drift detection | M | R0 | 1 | planned | — | — |
+| S1 | Config integrity and drift detection | M | R0 | 1 | in-review | — | — |
 | S2 | Immediate response after Start Run | U | R0 | 1 | planned | — | — |
 | S3 | Real-time logs | U | R0 | 2 | planned | — | — |
 | S4 | Scrollable results area | U | R0 | 1 | planned | — | — |

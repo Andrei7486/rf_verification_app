@@ -14,6 +14,13 @@ bench acceptance that closed it.
 - `docs/progress.html` and `docs/tracker.bat` added — development tracker, parsed live from the
   source documents, launched from the repository.
 - Decisions D6–D17 recorded and closed.
+- **S1 (M6): config integrity and drift detection, in review.** New `config/config.defaults.json`
+  (committed reference config); `config_store.load_config()` merges the live file over it, so a
+  missing key falls back to the shipped default, never `KeyError`, never a silent `0`. New
+  `diff_against_defaults()` logs every `missing`/`unknown`/`changed` key at run start; results are
+  stamped with `config_version`. Two pre-existing `.get(key, 0)` fallbacks fixed
+  (`flatness.py`/`power_accuracy.py`, attenuation keys). D16 (minimal CI — `ruff` + the offline
+  test suite on push) folded in per the roadmap. See `docs/adr/0002-config-defaults-and-drift-detection.md`.
 
 ---
 

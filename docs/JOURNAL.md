@@ -291,3 +291,74 @@ evidence now lives in the repo rather than only on the operator's disk) as
 journal entry above, and every other reference to that test (spec §M7 status note, `ROADMAP.md`
 Current position and S-M0/S-M0-V narrative), now marked **operator-unconfirmed** and re-pointed
 at the archived path instead of the local-only one.
+
+PR #18 (this closure) reviewed and merged. Tag `v0.7.0` created for real afterward, on `master`,
+pointing at the actual merge commit (`3e88ba1`) — not the branch tip it was mistakenly created on
+before the fix above. Pushed. Branch `docs/s-m0-close-deferred` deleted, local and `origin`.
+
+---
+
+## 2026-09-07 — S1: config integrity and drift detection (M6), D16 CI folded in
+
+**Context.** Spec §M6, roadmap stage S1 — next in the ordering, S0/S-M0/S-M0's closure all merged.
+Real, confirmed precedent for what this stage exists to catch: `chp_integ_bw_hz` read
+8 000 000 on the bench instead of 5 000 000 (span mistaken for integration bandwidth,
+`POWER_ACCURACY_HANDOFF.md` §8) — recorded as "the first confirmed instance of bench config
+drift". A second, unconfirmed suspect (an unexplained 5–6 dB level difference) is still an open
+hypothesis, not something this stage claims to resolve.
+
+**Plan reviewed before implementation**, per the established process. Two decisions needed before
+code:
+- Fix the three pre-existing `.get(key, 0)` fallbacks (`flatness.py`'s `lband_atten_db`;
+  `power_accuracy.py`'s `if_atten_db`, `lband_atten_db`) as part of this stage, or leave as a known
+  debt? **Operator: fix now.**
+- D16 (CI) in the same PR as M6, or split? **Operator: same PR, per the roadmap's own text.**
+
+**Done.**
+- New `config/config.defaults.json` — committed, bundled (`paths.resource_dir()`, same location
+  already used to seed a frozen build's first-run config), read-only. Same six sections as
+  `config.json`, snapshotted from `master`'s committed values (not the bench-drifted working
+  copy), plus `_config_version: 1`.
+- `config_store.load_config()` now merges the live file over `config.defaults.json` — a key
+  missing on disk resolves to the shipped default, never `KeyError`, never a silent `0`. No check
+  module needed a change to benefit from this.
+- New `config_store.diff_against_defaults()` (pure, offline-testable) classifies every key as
+  `missing` / `unknown` / `changed`; `compute_config_diff()` wraps it with real file reads.
+  `session.py` calls it at `start()`, before anything else in the run header.
+- `logger.py`: `log_header()` gained a "Config drift vs repo defaults (version N)" block (or
+  `(none)`); `write_results()` stamps `config_version` — `# config_version: N` as the CSV's first
+  line, a `"config_version"` field in the JSON. Nothing in the app re-reads its own CSVs (checked
+  by grep), so the leading comment line is safe.
+- Fixed the three `.get(key, 0)` spots (operator decision above) — `flatness.py`,
+  `power_accuracy.py`. Grepped the whole codebase for the same pattern first: these were the only
+  three; `iq_validation.py` has none and was not touched.
+- D16: `.github/workflows/ci.yml` — `ruff check .` + `python -m tests.test_sequences`, on push,
+  under Python 3.8 (to catch 3.9+-only syntax a newer local interpreter would silently accept).
+  `ruff.toml` scoped to pyflakes only (`select = ["F"]`), not pycodestyle — a first full-repo lint
+  run found 192 pycodestyle hits (119 line-length, 73 semicolon-joined statements), all of them
+  this codebase's established compact style, not bugs; enabling pycodestyle would mean either
+  reformatting the whole repo (`DEVELOPMENT_RULES.md` §9.7: no tidying outside scope) or permanent
+  noise. The one genuine pyflakes hit (`core/modulator.py`: `TransportError` imported, never used)
+  was fixed so CI's first run on this branch is green, not red for an unrelated pre-existing issue.
+- Design record: `docs/adr/0002-config-defaults-and-drift-detection.md`.
+- Offline tests added: `diff_against_defaults()` status classification (missing/unknown/changed/
+  matching), underscore-prefixed sections skipped, `config_store.load_config()` +
+  `compute_config_diff()` exercised end-to-end via temporary scratch files (not the operator's real
+  config files), and a sanity check that `config.defaults.json` itself parses and is versioned.
+  24/24 offline tests pass.
+- Manually exercised `logger.py`'s new rendering (drift block, CSV/JSON version stamp, the
+  `(none)`-drift case) against synthetic data — `RunSession.start()` needs live hardware and is not
+  covered by the offline suite, so this wiring was checked by direct invocation, not an automated
+  test. Also manually confirmed `compute_config_diff()` against the real, currently bench-drifted
+  `config.json` — correctly flagged five real drifted keys (`flat_power_dbm`, `dut_com_port`,
+  `dut_telnet_port`, `lband_atten_db`, `pwr_step_db`), a live demonstration of the mechanism working
+  before any test was written for it.
+
+**Not chased.** Spec §M6 cites "Source: handoff §4", but `POWER_ACCURACY_HANDOFF.md` §4 is the
+legacy modulator sequence, not config drift (§9's open-items table is the actual match). Minor,
+pre-existing, not part of this stage's scope — noted, not corrected.
+
+**Open.** `config.defaults.json` is kept in sync by hand; a new config key added without a
+matching defaults entry will show as `unknown` forever until someone adds it there too — a
+deliberate visible nudge, not an enforced check. `_config_version` bumps are also manual. Full
+rationale in ADR 0002.
