@@ -1,0 +1,259 @@
+2026-08-27 13:13:03,008  INFO     ======================================================================
+2026-08-27 13:13:03,008  INFO     RF Verification run: Power accuracy
+2026-08-27 13:13:03,008  INFO     Unit: NS330   Mode: auto
+2026-08-27 13:13:03,008  INFO     ----------------------------------------------------------------------
+2026-08-27 13:13:03,008  INFO     Parameters used for this run:
+2026-08-27 13:13:03,009  INFO         chp_integ_bw_hz        = 5000000
+2026-08-27 13:13:03,009  INFO         dut_conn_type          = serial
+2026-08-27 13:13:03,009  INFO         dut_prompt_wait_timeout_s = 3
+2026-08-27 13:13:03,009  INFO         dut_settle_after_power_s = 0.5
+2026-08-27 13:13:03,009  INFO         dwell_s                = 0.3
+2026-08-27 13:13:03,009  INFO         enable_adc_power_check = False
+2026-08-27 13:13:03,009  INFO         ext_gain_db            = 0.0
+2026-08-27 13:13:03,009  INFO         if_atten_db            = 5.7
+2026-08-27 13:13:03,009  INFO         if_max_mhz             = 180
+2026-08-27 13:13:03,009  INFO         lband_atten_db         = 3.5
+2026-08-27 13:13:03,009  INFO         mode                   = auto
+2026-08-27 13:13:03,009  INFO         pwr_start_dbm          = 0
+2026-08-27 13:13:03,009  INFO         pwr_step_db            = 2
+2026-08-27 13:13:03,009  INFO         pwr_stop_dbm           = -30
+2026-08-27 13:13:03,009  INFO         pwr_tolerance_db       = 0.8
+2026-08-27 13:13:03,009  INFO         ref_level_dbm          = 0
+2026-08-27 13:13:03,009  INFO         res_bw_hz              = 41000
+2026-08-27 13:13:03,009  INFO         span_hz                = 8000000
+2026-08-27 13:13:03,009  INFO         sweep_time_s           = 0.04
+2026-08-27 13:13:03,010  INFO         use_prompt_read        = True
+2026-08-27 13:13:03,010  INFO         video_bw_hz            = 1000
+2026-08-27 13:13:03,010  INFO     ======================================================================
+2026-08-27 13:13:03,016  INFO     CXA connected at 192.168.0.5:5025
+2026-08-27 13:13:03,843  INFO     Modulator connected via serial COM5 @ 115200
+2026-08-27 13:13:03,843  INFO     MOD >> -u expert-login
+2026-08-27 13:13:04,547  DEBUG    MOD << -u expert-login
+you are already login as a root
+root@device -users- *<119>
+2026-08-27 13:13:04,547  INFO     MOD >> top
+2026-08-27 13:13:05,247  DEBUG    MOD << top
+root@device -- *<120>
+2026-08-27 13:13:05,248  INFO     MOD >> -modulator-config
+2026-08-27 13:13:05,949  DEBUG    MOD << -modulator-config
+root@device -modulator-config- *<121>
+2026-08-27 13:13:05,949  INFO     MOD >> line
+2026-08-27 13:13:06,651  DEBUG    MOD << line
+root@device -line- *<122>
+2026-08-27 13:13:06,652  INFO     MOD >> tx enable
+2026-08-27 13:13:07,366  DEBUG    MOD << tx enable
+root@device -line- *<123>
+2026-08-27 13:13:07,366  INFO     MOD >> sine off
+2026-08-27 13:13:08,070  DEBUG    MOD << sine off
+root@device -line- *<124>
+2026-08-27 13:13:08,070  INFO     MOD >> symbol-rate 4
+2026-08-27 13:13:08,774  DEBUG    MOD << symbol-rate 4
+
+Configuring device, Please wait ........Done.
+root@device -line- *<125>
+2026-08-27 13:13:08,774  INFO     MOD >> roll-off 0.25
+2026-08-27 13:13:09,476  DEBUG    MOD << roll-off 0.25
+
+Configuring device, Please wait ........Done.
+root@device -line- *<126>
+2026-08-27 13:13:09,476  INFO     MOD >> dual-channel-mode single-ch
+2026-08-27 13:13:10,178  DEBUG    MOD << dual-channel-mode single-ch
+command not found
+root@device -line- *<127>
+2026-08-27 13:13:10,179  INFO     MOD >> -channel-1
+2026-08-27 13:13:10,881  DEBUG    MOD << -channel-1
+root@device -channel-1- *<128>
+2026-08-27 13:13:10,881  INFO     MOD >> state enable
+2026-08-27 13:13:11,596  DEBUG    MOD << state enable
+root@device -channel-1- *<129>
+2026-08-27 13:13:11,596  INFO     MOD >> source test-pattern
+2026-08-27 13:13:12,299  DEBUG    MOD << source test-pattern
+
+Illegal value
+root@device -channel-1- *<130>
+2026-08-27 13:13:12,300  INFO     MOD >> modulation qpsk
+2026-08-27 13:13:13,004  DEBUG    MOD << modulation qpsk
+
+Configuring device, Please wait ........Done.
+root@device -channel-1- *<131>
+2026-08-27 13:13:13,004  INFO     MOD >> frame-size normal
+2026-08-27 13:13:13,707  DEBUG    MOD << frame-size normal
+
+Configuring device, Please wait ........Done.
+root@device -channel-1- *<132>
+2026-08-27 13:13:13,707  INFO     MOD >> fec-rate 2/3
+2026-08-27 13:13:14,412  DEBUG    MOD << fec-rate 2/3
+
+Configuring device, Please wait ........Done.
+root@device -channel-1- *<133>
+2026-08-27 13:13:14,412  INFO     MOD >> pilot yes
+2026-08-27 13:13:15,116  DEBUG    MOD << pilot yes
+
+Configuring device, Please wait ........Done.
+root@device -channel-1- *<134>
+2026-08-27 13:13:15,117  INFO     MOD >> top
+2026-08-27 13:13:15,818  DEBUG    MOD << top
+root@device -- *<135>
+2026-08-27 13:13:15,818  INFO     MOD >> -modulator-config
+2026-08-27 13:13:16,525  DEBUG    MOD << -modulator-config
+root@device -modulator-config- *<136>
+2026-08-27 13:13:16,525  INFO     MOD >> line
+2026-08-27 13:13:17,229  DEBUG    MOD << line
+root@device -line- *<137>
+2026-08-27 13:13:17,229  INFO     CXA >> :SYST:PRES
+2026-08-27 13:13:17,994  INFO     CXA >> :POW:ATT:AUTO ON
+2026-08-27 13:13:18,047  INFO     CXA >> :CORR:SA:GAIN 0.0
+2026-08-27 13:13:18,109  INFO     CXA ?? :CORR:SA:GAIN?
+2026-08-27 13:13:18,110  INFO     power_accuracy: ext gain set to 0.00 dB, instrument reads back 0.00 dB
+2026-08-27 13:13:18,110  INFO     CXA >> :CONF:CHP
+2026-08-27 13:13:18,111  INFO     CXA >> :CHP:BAND:INT 5000000
+2026-08-27 13:13:18,111  INFO     CXA >> :CHP:SWE:TIME:AUTO ON
+2026-08-27 13:13:18,752  INFO     CXA >> :CHP:AVER:COUN 10
+2026-08-27 13:13:18,813  INFO     CXA >> :CHP:AVER ON
+2026-08-27 13:13:18,875  INFO     CXA >> :DISP:WIND:TRAC:Y:RLEV 0
+2026-08-27 13:13:18,875  INFO     CXA >> :CHP:FREQ:SPAN 8000000
+2026-08-27 13:13:18,944  INFO     CXA >> :CHP:BAND:AUTO ON
+2026-08-27 13:13:19,000  INFO     CXA >> :CHP:BAND 41000
+2026-08-27 13:13:19,066  INFO     CXA >> :CHP:BAND:VID:AUTO ON
+2026-08-27 13:13:19,125  INFO     CXA >> :CHP:BAND:VID 1000
+2026-08-27 13:13:19,188  INFO     CXA ?? :CHP:SWE:TIME?
+2026-08-27 13:13:19,189  INFO     Power accuracy: CHP sweep time = 0.1874 s (average count 10)
+2026-08-27 13:13:19,189  INFO     --- Point 1/16  freq=50.0 MHz ---
+2026-08-27 13:13:19,189  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:19,190  INFO     MOD >> freq 50.0
+2026-08-27 13:13:19,894  DEBUG    MOD << freq 50.0
+root@device -line- *<138>
+2026-08-27 13:13:19,894  INFO     MOD >> power 0.0
+2026-08-27 13:13:20,501  DEBUG    MOD << power 0.0
+root@device -line- *<139>
+2026-08-27 13:13:21,001  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:21,208  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:23,206  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': 0.0, 'Actual_dBm': 0.1, 'Deviation_dB': 0.1, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:23,206  INFO     --- Point 2/16  freq=50.0 MHz ---
+2026-08-27 13:13:23,206  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:23,207  INFO     MOD >> power -2.0
+2026-08-27 13:13:23,809  DEBUG    MOD << power -2.0
+root@device -line- *<140>
+2026-08-27 13:13:24,310  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:24,517  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:26,548  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -2.0, 'Actual_dBm': -1.97, 'Deviation_dB': 0.03, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:26,549  INFO     --- Point 3/16  freq=50.0 MHz ---
+2026-08-27 13:13:26,549  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:26,549  INFO     MOD >> power -4.0
+2026-08-27 13:13:27,151  DEBUG    MOD << power -4.0
+root@device -line- *<141>
+2026-08-27 13:13:27,652  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:27,859  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:29,849  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -4.0, 'Actual_dBm': -3.95, 'Deviation_dB': 0.05, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:29,849  INFO     --- Point 4/16  freq=50.0 MHz ---
+2026-08-27 13:13:29,849  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:29,850  INFO     MOD >> power -6.0
+2026-08-27 13:13:30,459  DEBUG    MOD << power -6.0
+root@device -line- *<142>
+2026-08-27 13:13:30,959  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:31,167  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:33,156  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -6.0, 'Actual_dBm': -5.91, 'Deviation_dB': 0.09, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:33,157  INFO     --- Point 5/16  freq=50.0 MHz ---
+2026-08-27 13:13:33,157  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:33,157  INFO     MOD >> power -8.0
+2026-08-27 13:13:33,759  DEBUG    MOD << power -8.0
+root@device -line- *<143>
+2026-08-27 13:13:34,259  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:34,466  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:36,469  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -8.0, 'Actual_dBm': -7.88, 'Deviation_dB': 0.12, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:36,469  INFO     --- Point 6/16  freq=50.0 MHz ---
+2026-08-27 13:13:36,469  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:36,469  INFO     MOD >> power -10.0
+2026-08-27 13:13:37,083  DEBUG    MOD << power -10.0
+root@device -line- *<144>
+2026-08-27 13:13:37,583  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:37,790  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:39,861  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -10.0, 'Actual_dBm': -10.01, 'Deviation_dB': -0.01, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:39,861  INFO     --- Point 7/16  freq=50.0 MHz ---
+2026-08-27 13:13:39,861  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:39,861  INFO     MOD >> power -12.0
+2026-08-27 13:13:40,468  DEBUG    MOD << power -12.0
+root@device -line- *<145>
+2026-08-27 13:13:40,968  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:41,175  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:43,372  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -12.0, 'Actual_dBm': -11.95, 'Deviation_dB': 0.05, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:43,372  INFO     --- Point 8/16  freq=50.0 MHz ---
+2026-08-27 13:13:43,373  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:43,373  INFO     MOD >> power -14.0
+2026-08-27 13:13:43,983  DEBUG    MOD << power -14.0
+root@device -line- *<146>
+2026-08-27 13:13:44,483  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:44,690  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:46,693  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -14.0, 'Actual_dBm': -13.92, 'Deviation_dB': 0.08, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:46,693  INFO     --- Point 9/16  freq=50.0 MHz ---
+2026-08-27 13:13:46,693  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:46,694  INFO     MOD >> power -16.0
+2026-08-27 13:13:47,306  DEBUG    MOD << power -16.0
+root@device -line- *<147>
+2026-08-27 13:13:47,807  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:48,014  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:50,000  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -16.0, 'Actual_dBm': -15.88, 'Deviation_dB': 0.12, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:50,000  INFO     --- Point 10/16  freq=50.0 MHz ---
+2026-08-27 13:13:50,000  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:50,000  INFO     MOD >> power -18.0
+2026-08-27 13:13:50,615  DEBUG    MOD << power -18.0
+root@device -line- *<148>
+2026-08-27 13:13:51,116  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:51,322  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:53,308  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -18.0, 'Actual_dBm': -18.02, 'Deviation_dB': -0.02, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:53,308  INFO     --- Point 11/16  freq=50.0 MHz ---
+2026-08-27 13:13:53,308  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:53,308  INFO     MOD >> power -20.0
+2026-08-27 13:13:53,913  DEBUG    MOD << power -20.0
+root@device -line- *<149>
+2026-08-27 13:13:54,413  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:54,620  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:56,610  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -20.0, 'Actual_dBm': -19.98, 'Deviation_dB': 0.02, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:56,610  INFO     --- Point 12/16  freq=50.0 MHz ---
+2026-08-27 13:13:56,610  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:56,611  INFO     MOD >> power -22.0
+2026-08-27 13:13:57,213  DEBUG    MOD << power -22.0
+root@device -line- *<150>
+2026-08-27 13:13:57,714  INFO     CXA >> :INIT:REST
+2026-08-27 13:13:57,921  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:13:59,914  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -22.0, 'Actual_dBm': -21.93, 'Deviation_dB': 0.07, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:13:59,914  INFO     --- Point 13/16  freq=50.0 MHz ---
+2026-08-27 13:13:59,914  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:13:59,915  INFO     MOD >> power -24.0
+2026-08-27 13:14:00,527  DEBUG    MOD << power -24.0
+root@device -line- *<151>
+2026-08-27 13:14:01,028  INFO     CXA >> :INIT:REST
+2026-08-27 13:14:01,235  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:14:03,433  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -24.0, 'Actual_dBm': -23.89, 'Deviation_dB': 0.11, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:14:03,433  INFO     --- Point 14/16  freq=50.0 MHz ---
+2026-08-27 13:14:03,433  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:14:03,434  INFO     MOD >> power -26.0
+2026-08-27 13:14:04,138  DEBUG    MOD << power -26.0
+root@device -line- *<152>
+2026-08-27 13:14:04,639  INFO     CXA >> :INIT:REST
+2026-08-27 13:14:04,846  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:14:06,839  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -26.0, 'Actual_dBm': -25.79, 'Deviation_dB': 0.21, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:14:06,840  INFO     --- Point 15/16  freq=50.0 MHz ---
+2026-08-27 13:14:06,840  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:14:06,840  INFO     MOD >> power -28.0
+2026-08-27 13:14:07,456  DEBUG    MOD << power -28.0
+root@device -line- *<153>
+2026-08-27 13:14:07,957  INFO     CXA >> :INIT:REST
+2026-08-27 13:14:08,164  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:14:10,359  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -28.0, 'Actual_dBm': -27.92, 'Deviation_dB': 0.08, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:14:10,360  INFO     --- Point 16/16  freq=50.0 MHz ---
+2026-08-27 13:14:10,360  INFO     CXA >> :FREQ:CENT 50000000
+2026-08-27 13:14:10,360  INFO     MOD >> power -30.0
+2026-08-27 13:14:10,971  DEBUG    MOD << power -30.0
+root@device -line- *<154>
+2026-08-27 13:14:11,471  INFO     CXA >> :INIT:REST
+2026-08-27 13:14:11,678  INFO     CXA ?? :READ:CHP:CHP?
+2026-08-27 13:14:13,688  INFO     Measured: {'Frequency_MHz': 50.0, 'Set_dBm': -30.0, 'Actual_dBm': -29.97, 'Deviation_dB': 0.03, 'ADC_Power_dBm': '', 'Result': 'PASS'}
+2026-08-27 13:14:13,688  INFO     MOD >> tx disable
+2026-08-27 13:14:14,404  DEBUG    MOD << tx disable
+root@device -line- *<155>
+2026-08-27 13:14:14,404  INFO     MOD >> sine off
+2026-08-27 13:14:15,105  DEBUG    MOD << sine off
+root@device -line- *<156>
+2026-08-27 13:14:15,105  INFO     Verdict: PASS
+2026-08-27 13:14:15,108  INFO     Results written: power_accuracy_NS330_20260827-131303.csv

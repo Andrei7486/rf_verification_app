@@ -18,13 +18,16 @@ run all three checks on the bench and continue production work. See spec §2 (re
  you are here
 ```
 
-**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S0 and S-M0 are
-merged to `master`.** S-M0 (Power Accuracy per-point overhead, operator-directed, out of stage
-order) is **closed `done-unverified`, tag `v0.7.0`, accepted `deferred`** (2026-09-07) — closed for
+**Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S0 and S-M0's
+code are merged to `master`.** S-M0 (Power Accuracy per-point overhead, operator-directed, out of
+stage order) is **closed `done-unverified`, accepted `deferred`** (2026-09-07) — closed for
 workflow purposes so S1 can proceed, without its bench acceptance criteria having been run (no
-instrument access at close time). The verification debt is tracked as **S-M0-V**, open in the
-stage table below. See `docs/JOURNAL.md` 2026-09-07 for the operator decision and what remains
-outstanding, and 2026-08-27 for a partial serial-only A/B that is not a substitute for S-M0-V.
+instrument access at close time). Tag `v0.7.0` is reserved for this closure but **not yet applied**
+in git — per `DEVELOPMENT_RULES.md` §6 it is applied to `master` after this closure's own docs PR
+merges, not before (see the 2026-09-07 journal entry). The verification debt itself is tracked as
+**S-M0-V**, open in the stage table below. See `docs/JOURNAL.md` 2026-09-07 for the operator
+decision and what remains outstanding, and 2026-08-27 for a partial, operator-unconfirmed
+serial-only A/B that is not a substitute for S-M0-V.
 
 **Runtime:** the app currently runs from Andrei's laptop (Windows 11 x64), on the lab network with
 the CXA and the DUT. NSLAB04-PC (Windows 7 32-bit) remains a possible future deployment, so the
@@ -88,17 +91,20 @@ of the P0 calibration gate, and the fix does not depend on P0 completing.
 50 MHz/16-point block; setup phase reported separately, no threshold; value parity within 0.1 dB;
 no ADC/nav commands between points; `MOD freq` once per block, not once per point;
 `:CORR:SA:GAIN?` read-back unchanged. If value parity fails, item 3 alone reverts.
-**Closed `done-unverified`, tag `v0.7.0`, 2026-09-07** — merged and closed for workflow purposes so
-S1 could proceed; bench acceptance criteria 1–8 were **not** executed (no instrument access at
-close time). See `docs/JOURNAL.md` 2026-09-07 and S-M0-V below.
+**Closed `done-unverified`, 2026-09-07, tag `v0.7.0` reserved (applied to `master` once this
+closure's own docs PR merges — `DEVELOPMENT_RULES.md` §6)** — merged and closed for workflow
+purposes so S1 could proceed; bench acceptance criteria 1–8 were **not** executed as an
+operator-witnessed run (no instrument access at close time). See `docs/JOURNAL.md` 2026-09-07 and
+S-M0-V below.
 
 ### S-M0-V — S-M0 bench acceptance (criteria 1-8)
 Req: **M7** · Risk: — · Est: small
 Not new work — the verification debt S-M0 was closed with. Runs spec §M7's acceptance criteria
-1–8 against real hardware: same-session A/B (criterion 3, partially bench-run 2026-08-27 over
-serial — see the journal — but not yet over telnet, where item 3's prompt-based read actually
-applies), the settle-time distinguishing test (criterion 7, `dut_settle_after_power_s` unverified),
-and the Flatness regression guard (criterion 8).
+1–8 against real hardware, as an operator-witnessed bench acceptance: same-session A/B (criterion
+3 — a partial, operator-unconfirmed serial run exists from 2026-08-27, see the journal, but not
+yet over telnet, where item 3's prompt-based read actually applies), the settle-time distinguishing
+test (criterion 7, `dut_settle_after_power_s` unverified), and the Flatness regression guard
+(criterion 8).
 **Closes when:** all 8 criteria have been run and their results recorded in `docs/JOURNAL.md`;
 `ROADMAP.md`'s S-M0 row is then updated from `done-unverified`/`deferred` to `done` with the actual
 bench-accepted date.

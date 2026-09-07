@@ -322,10 +322,11 @@ since they do not change what the instrument reports.
 
 **Status (2026-09-07): stage closed `done-unverified`, acceptance DEFERRED.** Merged and closed
 for workflow purposes on operator decision so S1 could proceed — criteria 1–8 above were **not**
-executed (no instrument access at close time). A partial serial-only A/B on 2026-08-27 bench-
-confirmed items 1 and 2 (criterion 3, and criteria 2/4/5/6) but **not** item 3, which only exists
-on the telnet path (`docs/JOURNAL.md` 2026-08-27 and 2026-09-07). Criteria 1, 3 (telnet), 7 and 8
-remain outstanding; tracked as roadmap stage **S-M0-V**.
+executed as an operator-witnessed bench acceptance (no instrument access at close time). A partial
+serial-only A/B was run by CC on 2026-08-27, operator-unconfirmed at the time — see
+`docs/bench/README.md` and `docs/JOURNAL.md` 2026-08-27 for what it does and does not support.
+Criteria 1, 3 (telnet), 7 and 8 remain outstanding either way; tracked as roadmap stage
+**S-M0-V**.
 
 ---
 
