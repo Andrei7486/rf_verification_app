@@ -198,3 +198,55 @@ revert — flip `power_accuracy.use_prompt_read` back to `false`, no code change
 **Housekeeping.** Both stage branches (`stage/s0-documentation-scaffolding`,
 `stage/s-m0-power-accuracy-overhead`) deleted, locally and on `origin`, per `DEVELOPMENT_RULES.md`
 §6 (merge to `master`, delete after merge).
+
+---
+
+## 2026-08-27 — Partial bench test: serial-only A/B, S-M0 items 1 and 2
+
+Operator connected to the bench. CXA (192.168.0.5:5025) reachable after a reconnect. The
+modulator's telnet path (192.168.0.50:23) accepted the TCP connection but the DUT's CLI never
+produced a banner or replied to any command — `Actual_dBm` came back flat (~−67 dBm) across a
+full 16-point sweep, tracking nothing. **Operator confirmed this is a configuration issue on a
+different station, unrelated to this app** — to be re-verified separately, on telnet, by the
+operator.
+
+To unblock testing what could be tested today, switched `modulator.dut_conn_type` to `serial`
+(COM5) for this session only. Ran the spec §M7 criterion-3 recipe over serial:
+
+- Run A (`enable_adc_power_check=true`, `use_prompt_read=false`): PASS, 16/16, `Actual_dBm`
+  correctly tracked `Set_dBm` (max deviation 0.21 dB, within `pwr_tolerance_db=0.8`) — confirms the
+  RF chain and unit calibration are fine; the flat −67 dBm reading on the dead telnet session was
+  not a hardware or calibration problem.
+- Run B (`enable_adc_power_check=false`, `use_prompt_read=true`): PASS, 16/16.
+- Point-by-point `|A−B|`: max **0.07 dB**, tolerance 0.1 dB.
+- Criteria 2, 4, 5, 6 also confirmed from Run B's log: `MOD freq` sent once (Point 1, not resent);
+  `top`/`-modulator-config`/`line` appear only in `modulator_setup()`, never between points;
+  `:CORR:SA:GAIN?` read-back present.
+
+**This confirms items 1 and 2 (the ADC gate and freq-on-change) do not disturb reported levels —
+including the untested assumption flagged in spec §M7, that `power <dbm>` does not itself disturb
+the DUT's tuned frequency.** It does **not** exercise item 3: `SerialModulator` always uses the
+legacy fixed sleep: `use_prompt_read` has no effect on the serial path. Criterion 1 (Point 1 → last
+`Measured:`, target under 60 s) measured 54.5 s on this serial run, but that number is not a claim
+about item 3 — it reflects only items 1 and 2 on an already-fast serial link. Results:
+`results/power_accuracy_NS330_20260827-130957.{csv,log,json}` (Run A),
+`results/power_accuracy_NS330_20260827-131303.{csv,log,json}` (Run B).
+
+---
+
+## 2026-09-07 — S-M0 closed, acceptance DEFERRED
+
+S-M0 closed 2026-09-07 by operator decision without bench acceptance.
+Criteria 1-8 outstanding, in particular the same-session A/B (criterion 3) and the
+settle-time distinguishing test (criterion 7).
+dut_settle_after_power_s = 0.5 is carried over from legacy modSettings.txt and has
+never been verified on this unit. If Power Accuracy levels later read low across
+all points, this key is the first suspect.
+Operator intends to verify by other means.
+Revert without a code change: power_accuracy.use_prompt_read = false and
+power_accuracy.enable_adc_power_check = true.
+
+Recorded in `docs/ROADMAP.md`: S-M0 status `done-unverified`, tag `v0.7.0`, accepted `deferred`.
+Follow-up stage **S-M0-V** opened (track M, weight 1, status `planned`) to close this verification
+debt when instruments are available again — it runs spec §M7's criteria 1–8 in full, including a
+telnet re-run of criterion 3 (2026-08-27's A/B above used serial, which does not exercise item 3).

@@ -320,6 +320,13 @@ added in the pre-merge correction, `DEVELOPMENT_RULES.md` §7.3/§7.4):**
 If acceptance criterion 3 fails, **Item 3 is reverted on its own** — Items 1 and 2 are R1 and stay,
 since they do not change what the instrument reports.
 
+**Status (2026-09-07): stage closed `done-unverified`, acceptance DEFERRED.** Merged and closed
+for workflow purposes on operator decision so S1 could proceed — criteria 1–8 above were **not**
+executed (no instrument access at close time). A partial serial-only A/B on 2026-08-27 bench-
+confirmed items 1 and 2 (criterion 3, and criteria 2/4/5/6) but **not** item 3, which only exists
+on the telnet path (`docs/JOURNAL.md` 2026-08-27 and 2026-09-07). Criteria 1, 3 (telnet), 7 and 8
+remain outstanding; tracked as roadmap stage **S-M0-V**.
+
 ---
 
 ### 5.2 User interface and workflow (track U)
