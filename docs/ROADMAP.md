@@ -28,7 +28,8 @@ operator decision and what remains outstanding, and 2026-08-27 for a partial,
 operator-unconfirmed serial-only A/B that is not a substitute for S-M0-V.
 
 **S1 (config integrity and drift, D16 CI folded in) is implemented, in review** — see the stage
-entry below and the 2026-09-07 journal entry.
+entry below and the 2026-09-07 journal entry. **S2 (immediate response after Start Run) is also
+implemented, in review** — see the stage entry below and the 2026-09-08 journal entry.
 
 **Runtime:** the app currently runs from Andrei's laptop (Windows 11 x64), on the lab network with
 the CXA and the DUT. NSLAB04-PC (Windows 7 32-bit) remains a possible future deployment, so the
@@ -129,6 +130,12 @@ Req: **U2** · Risk: R0 · Est: small
 Instant status change, running indicator, double-start lock, first log lines immediately.
 **Why here:** smallest possible visible win, and it establishes the run-state model that S3 and S5
 build on.
+**Implemented, in review, 2026-09-08.** `static/js/app.js` only — `startRun()` now switches to a
+"Starting …" UI state synchronously on click, before the `/api/run/start` call fires. Server-side
+`session.py` untouched (R0). No JS test infrastructure exists in this repo; verified by tracing
+the code path plus a hardware-free check that the live-log buffer surfaces lines mid-sequence, not
+a screenshot-based before/after (no browser automation available in this environment — see the
+journal).
 
 ### S3 — Real-time logs
 Req: **U3** · Risk: R0 · Est: medium · Needs: **D6**
@@ -260,7 +267,7 @@ verification debt, tracked as its own follow-up stage (see e.g. S-M0-V below) �
 | S-M0 | Power Accuracy per-point overhead | M | R1+R2 | 2 | done-unverified | v0.7.0 | deferred |
 | S-M0-V | S-M0 bench acceptance (criteria 1-8) | M | — | 1 | planned | — | — |
 | S1 | Config integrity and drift detection | M | R0 | 1 | in-review | — | — |
-| S2 | Immediate response after Start Run | U | R0 | 1 | planned | — | — |
+| S2 | Immediate response after Start Run | U | R0 | 1 | in-review | — | — |
 | S3 | Real-time logs | U | R0 | 2 | planned | — | — |
 | S4 | Scrollable results area | U | R0 | 1 | planned | — | — |
 | S5 | Progress and remaining time | U | R0 | 2 | planned | — | — |
