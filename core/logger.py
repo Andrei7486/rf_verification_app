@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import threading
+import time
 from collections import deque
 from datetime import datetime
 _LIVE_LOCK = threading.Lock()
@@ -22,6 +23,23 @@ def live_tail(after_seq=0):
 def live_clear():
     with _LIVE_LOCK:
         _LIVE.clear()
+def stream_live(after_seq=0, poll_interval=0.2):
+    """SSE generator: yields one 'id: N\\ndata: <json line>\\n\\n' event per new
+    live-log line, starting after 'after_seq'. Polls the same buffer live_tail()
+    reads - a short in-process loop, not a new threading primitive - at a fifth
+    of the client's own (now fallback-only) 1 s poll interval (D6, U3). The id
+    matches _LIVE's own per-line sequence numbers 1:1 (each append increments by
+    exactly 1, so this is a safe reconstruction, not a guess), so a browser's
+    native EventSource reconnect (Last-Event-ID) resumes without any gap or
+    duplicate.
+    """
+    seq = after_seq
+    while True:
+        d = live_tail(seq)
+        for i, line in enumerate(d["lines"], start=seq + 1):
+            yield "id: %d\ndata: %s\n\n" % (i, json.dumps(line))
+        seq = d["seq"]
+        time.sleep(poll_interval)
 class _LiveHandler(logging.Handler):
     def emit(self, record):
         try:

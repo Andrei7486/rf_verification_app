@@ -14,6 +14,10 @@ async function getJSON(url) {
 }
 const $ = (id) => document.getElementById(id);
 let RUN = null, POLL = null, LOG_SEQ = 0;
+// U3/D6: the live log is a stream (EventSource) independent of status polling,
+// with LOG_POLL as the D6-mandated fallback when SSE is unsupported or drops for
+// good (LOG_ES/LOG_POLL are never both set - one is always null).
+let LOG_ES = null, LOG_POLL = null;
 // Rows measured in manual mode; auto mode reads them back from /api/run/status.
 let MANUAL_ROWS = [];
 const LIVE_FAILS = { box: "failBox", count: "failCount", list: "failList" };
@@ -110,10 +114,10 @@ function enterStartingUi(auto) {
   ["stopBtn", "measureBtn", "nextBtn", "skipBtn"].forEach((id) => { $(id).disabled = true; });
   $("modeHint").textContent = "Connecting to the analyzer and modulator \u2026";
   $("runErr").textContent = "";
-  // Log lines the server writes during connect/setup land in the same live-log buffer
-  // /api/run/logs reads from - polling from here (not after the start call resolves)
-  // is what makes them "appear immediately" without needing full U3 streaming.
-  startLogPolling();
+  // Log lines the server writes during connect/setup land in the same live-log
+  // buffer the SSE stream (U3/D6) reads from - starting it here, before the start
+  // call resolves, is what makes them "appear immediately" (U2).
+  startLogStream();
 }
 function finishEnteringRunUi(info) {
   $("runTitle").textContent = info.title + "  \u2014  " + info.unit;
@@ -131,7 +135,7 @@ function finishEnteringRunUi(info) {
   }
 }
 function exitStartingUi(message) {
-  stopPolling();
+  stopPolling(); stopLogStream();
   $("runPanel").classList.add("hidden");
   $("resultsPanel").classList.add("hidden");
   $("setupPanel").classList.remove("hidden");
@@ -218,7 +222,7 @@ async function advance(url) {
 async function stopRun() {
   $("runErr").textContent = "";
   try {
-    stopPolling();
+    stopPolling(); stopLogStream();
     const res = await postJSON("/api/run/stop", {});
     RUN = null; $("runPanel").classList.add("hidden"); renderResults(res);
   } catch (e) { $("runErr").textContent = e.message; }
@@ -228,6 +232,8 @@ async function confirmCable() {
   catch (e) { $("runErr").textContent = e.message; }
 }
 async function pollOnce() {
+  // Status only - the live log is its own independent stream (see below), not
+  // tied to this 1 s cadence any more (U3/D6).
   try {
     const s = await getJSON("/api/run/status");
     if (s.idle) return;
@@ -237,26 +243,49 @@ async function pollOnce() {
     if (s.paused) { $("cableMsg").textContent = s.pause_msg; $("cableBox").classList.remove("hidden"); }
     else { $("cableBox").classList.add("hidden"); }
     if (s.finished) {
-      stopPolling(); $("runPanel").classList.add("hidden");
+      stopPolling(); stopLogStream(); $("runPanel").classList.add("hidden");
       renderResults({ verdict: s.verdict, summary: s.summary, columns: s.columns,
                       rows: s.rows, flags: s.flags, log_base: s.log_base });
     }
   } catch (e) {}
-  await pollLogs();
+}
+function appendLogLine(text) {
+  const view = $("logView");
+  view.textContent += (view.textContent ? "\n" : "") + text;
+  view.scrollTop = view.scrollHeight;
 }
 async function pollLogs() {
+  // D6's mandated fallback transport - used when EventSource is unsupported or
+  // its connection gives up for good. Same ~1 s cadence as before S3.
   try {
     const d = await getJSON("/api/run/logs?since=" + LOG_SEQ);
-    if (d.lines && d.lines.length) {
-      LOG_SEQ = d.seq;
-      const view = $("logView");
-      view.textContent += (view.textContent ? "\n" : "") + d.lines.join("\n");
-      view.scrollTop = view.scrollHeight;
-    }
+    if (d.lines && d.lines.length) { LOG_SEQ = d.seq; d.lines.forEach(appendLogLine); }
   } catch (e) {}
 }
+function startLogStream() {
+  stopLogStream();
+  if (typeof EventSource === "undefined") { startLogPollFallback(); return; }
+  const es = new EventSource("/api/run/logs/stream?since=" + LOG_SEQ);
+  es.onmessage = (ev) => {
+    LOG_SEQ = Number(ev.lastEventId) || LOG_SEQ;
+    appendLogLine(JSON.parse(ev.data));
+  };
+  // Only fall back once the browser has genuinely given up (CLOSED) - a
+  // transient drop leaves it CONNECTING while EventSource's own native
+  // reconnect (Last-Event-ID) retries, which should be left alone.
+  es.onerror = () => { if (es.readyState === EventSource.CLOSED) { stopLogStream(); startLogPollFallback(); } };
+  LOG_ES = es;
+}
+function startLogPollFallback() {
+  stopLogStream();
+  pollLogs();
+  LOG_POLL = setInterval(pollLogs, 1000);
+}
+function stopLogStream() {
+  if (LOG_ES) { LOG_ES.close(); LOG_ES = null; }
+  if (LOG_POLL) { clearInterval(LOG_POLL); LOG_POLL = null; }
+}
 function startPolling() { stopPolling(); POLL = setInterval(pollOnce, 1000); pollOnce(); }
-function startLogPolling() { stopPolling(); POLL = setInterval(pollLogs, 1000); pollLogs(); }
 function stopPolling() { if (POLL) { clearInterval(POLL); POLL = null; } }
 function renderResults(res) {
   const head = $("resHead"); head.innerHTML = "";
@@ -280,7 +309,7 @@ function renderResults(res) {
   if (res.log_base) $("filesHint").textContent = "Saved to results/: " + res.log_base + ".log / .csv / .json";
 }
 function newRun() {
-  stopPolling();
+  stopPolling(); stopLogStream();
   $("failBox").classList.add("hidden"); $("failReport").classList.add("hidden");
   $("resultsPanel").classList.add("hidden");
   $("setupPanel").classList.remove("hidden");

@@ -2,9 +2,9 @@
 import os
 import webbrowser
 from threading import Timer
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 from core import config_store, paths
-from core.logger import live_tail
+from core.logger import live_tail, stream_live
 from core.session import SESSION, SessionError
 app = Flask(__name__,
             template_folder=os.path.join(paths.resource_dir(), "templates"),
@@ -92,6 +92,16 @@ def run_status():
 def run_logs():
     since = request.args.get("since", default=0, type=int)
     return jsonify(live_tail(since))
+@app.route("/api/run/logs/stream", methods=["GET"])
+def run_logs_stream():
+    # U3 / D6: SSE transport. Last-Event-ID (sent automatically by the browser on
+    # EventSource reconnect) takes priority over the initial ?since= so a dropped
+    # connection resumes without a gap or duplicate; ?since= only matters for the
+    # very first connection a page makes.
+    since = request.headers.get("Last-Event-ID", type=int)
+    if since is None:
+        since = request.args.get("since", default=0, type=int)
+    return Response(stream_live(since), mimetype="text/event-stream")
 def _open_browser():
     webbrowser.open("http://%s:%d" % (HOST, PORT))
 if __name__ == "__main__":

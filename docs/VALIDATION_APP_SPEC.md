@@ -401,6 +401,18 @@ full 175-point run.
 The buffer is not bounded. On the laptop this is fine; it is recorded in §9 as a deferred
 portability item to be handled in the refactor pass before any Windows 7 deployment.
 
+**Implemented (S3, 2026-09-08).** New `GET /api/run/logs/stream` (Server-Sent Events, D6) —
+`core/logger.py`'s `stream_live()` polls the existing live-log buffer at 200 ms and pushes each
+new line as it appears; the pre-existing `GET /api/run/logs` 1 s-poll endpoint is unchanged and now
+serves as D6's mandated fallback, used when `EventSource` is unsupported or its connection gives
+up for good (a transient drop is left to the browser's own native reconnect). Design detail:
+`docs/adr/0003-sse-live-log-stream.md`. `core/session.py` untouched — this stage only changes how
+already-written log lines reach the browser, not what gets logged or when; R0 holds. Verified
+end-to-end via Flask's in-process test client (SSE framing, content, `?since=`/`Last-Event-ID`
+resume) — a real open socket connection could not be exercised through this environment's sandboxed
+shell (long-lived connections appear to be blocked at the tooling level, not a defect in the
+route itself, confirmed by the URL map and the in-process client both working correctly).
+
 ---
 
 **U4 — Separate scrollable results area**

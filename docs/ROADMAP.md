@@ -28,8 +28,9 @@ operator decision and what remains outstanding, and 2026-08-27 for a partial,
 operator-unconfirmed serial-only A/B that is not a substitute for S-M0-V.
 
 **S1 (config integrity and drift, D16 CI folded in) is implemented, in review** — see the stage
-entry below and the 2026-09-07 journal entry. **S2 (immediate response after Start Run) is also
-implemented, in review** — see the stage entry below and the 2026-09-08 journal entry.
+entry below and the 2026-09-07 journal entry. **S2 (immediate response after Start Run) and S3
+(real-time logs, SSE per D6) are also implemented, in review** — see the stage entries below and
+the 2026-09-08 journal entries.
 
 **Runtime:** the app currently runs from Andrei's laptop (Windows 11 x64), on the lab network with
 the CXA and the DUT. NSLAB04-PC (Windows 7 32-bit) remains a possible future deployment, so the
@@ -141,6 +142,10 @@ journal).
 Req: **U3** · Risk: R0 · Est: medium · Needs: **D6**
 Streaming of DUT and analyzer traffic to the UI as it happens.
 **Note:** decide D6 (SSE vs polling) before this stage opens.
+**Implemented, in review, 2026-09-08.** D6 already accepted ("SSE from Flask 2.3.3 with a polling
+fallback") — this stage is that implementation. New `GET /api/run/logs/stream`
+(`core/logger.py`'s `stream_live()`); the pre-existing polling endpoint is unchanged and serves as
+the fallback. `core/session.py` untouched (R0). See `docs/adr/0003-sse-live-log-stream.md`.
 
 ### S4 — Scrollable results area
 Req: **U4** · Risk: R0 · Est: small
@@ -268,7 +273,7 @@ verification debt, tracked as its own follow-up stage (see e.g. S-M0-V below) �
 | S-M0-V | S-M0 bench acceptance (criteria 1-8) | M | — | 1 | planned | — | — |
 | S1 | Config integrity and drift detection | M | R0 | 1 | in-review | — | — |
 | S2 | Immediate response after Start Run | U | R0 | 1 | in-review | — | — |
-| S3 | Real-time logs | U | R0 | 2 | planned | — | — |
+| S3 | Real-time logs | U | R0 | 2 | in-review | — | — |
 | S4 | Scrollable results area | U | R0 | 1 | planned | — | — |
 | S5 | Progress and remaining time | U | R0 | 2 | planned | — | — |
 | S6 | Run page state persistence | U | R0 | 1 | planned | — | — |
