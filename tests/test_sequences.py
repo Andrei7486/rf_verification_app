@@ -636,6 +636,85 @@ def test_ext_gain_readback_mismatch_warns():
     print("ext gain: read-back mismatch OK (warns beyond 0.01 dB, silent within tolerance)")
 
 
+def test_config_diff_statuses():
+    """M6: diff_against_defaults() classifies each key correctly - missing (in
+    defaults, absent on disk - falls back to the default), unknown (on disk, not in
+    defaults), changed (both present, different values) - and reports nothing for a
+    key that matches. Synthetic dicts only, pure function, no file I/O.
+    """
+    from core import config_store
+    defaults = {"power_accuracy": {"if_atten_db": 5.7, "pwr_step_db": 5, "ext_gain_db": 0}}
+    live = {"power_accuracy": {"pwr_step_db": 2, "extra_key": "x", "ext_gain_db": 0}}
+    diff = config_store.diff_against_defaults(live, defaults)
+    by_key = {(e["section"], e["key"]): e for e in diff}
+    assert by_key[("power_accuracy", "if_atten_db")]["status"] == "missing"
+    assert by_key[("power_accuracy", "if_atten_db")]["default"] == 5.7
+    assert by_key[("power_accuracy", "pwr_step_db")]["status"] == "changed"
+    assert by_key[("power_accuracy", "pwr_step_db")] == {
+        "section": "power_accuracy", "key": "pwr_step_db", "status": "changed",
+        "live": 2, "default": 5}
+    assert by_key[("power_accuracy", "extra_key")]["status"] == "unknown"
+    assert ("power_accuracy", "ext_gain_db") not in by_key  # matches in both -> no entry
+    print("config: diff_against_defaults OK (missing/unknown/changed classified, matches silent)")
+
+
+def test_config_diff_no_drift_and_underscore_sections_skipped():
+    """M6: identical config produces an empty diff, and any top-level key starting
+    with '_' (like _config_version) is never treated as a section to diff.
+    """
+    from core import config_store
+    same = {"flatness": {"flat_tolerance_db": 1}, "_config_version": 3}
+    assert config_store.diff_against_defaults(same, same) == []
+    print("config: no-drift and underscore-section skip OK")
+
+
+def test_config_store_load_merges_and_falls_back():
+    """M6: config_store.load_config() merges the live file over config.defaults.json -
+    a key present in defaults but missing on disk falls back to the shipped default,
+    never to 0 or a KeyError (CLAUDE.md hard constraint). Exercises the real
+    load_config()/compute_config_diff() code path via temporary scratch files, not
+    the operator's actual config.json/config.defaults.json.
+    """
+    import os
+    import tempfile
+    from core import config_store
+    scratch = tempfile.mkdtemp()
+    defaults_path = os.path.join(scratch, "config.defaults.json")
+    live_path = os.path.join(scratch, "config.json")
+    with open(defaults_path, "w", encoding="utf-8") as f:
+        json.dump({"_config_version": 7,
+                  "power_accuracy": {"if_atten_db": 5.7, "pwr_step_db": 5}}, f)
+    with open(live_path, "w", encoding="utf-8") as f:
+        json.dump({"power_accuracy": {"pwr_step_db": 2}}, f)  # if_atten_db absent
+    orig = (config_store.CONFIG_FILE, config_store.DEFAULTS_FILE)
+    config_store.CONFIG_FILE, config_store.DEFAULTS_FILE = live_path, defaults_path
+    try:
+        merged = config_store.load_config()
+        assert merged["power_accuracy"]["if_atten_db"] == 5.7, merged  # fell back, not 0
+        assert merged["power_accuracy"]["pwr_step_db"] == 2, merged   # live override wins
+        diff, version = config_store.compute_config_diff()
+        assert version == 7
+        statuses = {(e["section"], e["key"]): e["status"] for e in diff}
+        assert statuses[("power_accuracy", "if_atten_db")] == "missing"
+        assert statuses[("power_accuracy", "pwr_step_db")] == "changed"
+    finally:
+        config_store.CONFIG_FILE, config_store.DEFAULTS_FILE = orig
+    print("config: load_config merge + compute_config_diff OK (missing->default, changed detected)")
+
+
+def test_config_defaults_file_is_valid():
+    """M6: the shipped config.defaults.json parses, carries an integer
+    _config_version, and defines every section the app's checks read from.
+    """
+    from core import config_store
+    d = config_store.load_defaults()
+    assert isinstance(d.get("_config_version"), int), d.get("_config_version")
+    for section in ("analyzer", "modulator", "flatness", "power_accuracy",
+                    "iq_validation", "general"):
+        assert section in d, "config.defaults.json is missing section %r" % section
+    print("config: config.defaults.json OK (valid, versioned, all sections present)")
+
+
 if __name__ == "__main__":
     test_flatness_fixed_freqs()
     test_flatness_per_point_isolation()
@@ -657,4 +736,8 @@ if __name__ == "__main__":
     test_ext_gain_resolution_and_fallback()
     test_ext_gain_pushed_per_check()
     test_ext_gain_readback_mismatch_warns()
+    test_config_diff_statuses()
+    test_config_diff_no_drift_and_underscore_sections_skipped()
+    test_config_store_load_merges_and_falls_back()
+    test_config_defaults_file_is_valid()
     print("\nALL TESTS PASSED")

@@ -222,6 +222,21 @@ produced one unexplained 5–6 dB level difference.
 **Acceptance:** deliberately remove one key on the bench — the run log names it explicitly and the
 app uses the documented default rather than `0`.
 
+**Implemented (S1, 2026-09-07).** `config/config.defaults.json` — a new, committed, read-only
+reference config (same six sections, plus `_config_version`) — is the "repo defaults" this
+requirement asks for. `config_store.load_config()` now merges the live file over it, so a key
+missing on disk resolves to the shipped default rather than raising or (at the three call sites
+that previously did) reading as `0`. `config_store.diff_against_defaults()` classifies every key
+as `missing` / `unknown` / `changed`; `session.py` logs the result at the top of every run header
+and stamps `config_version` into the CSV (`# config_version: N`, first line) and JSON results.
+Design detail and the reasoning behind keeping `_config_version` out of the settings-page
+round-trip: `docs/adr/0002-config-defaults-and-drift-detection.md`.
+
+D16 (minimal CI) folded in per `ROADMAP.md`: `.github/workflows/ci.yml` runs `ruff check .`
+(pyflakes only — `ruff.toml` deliberately excludes pycodestyle, which conflicts with this
+codebase's established semicolon/long-line style) plus `python -m tests.test_sequences` on every
+push, under Python 3.8 to catch 3.9+-only syntax a newer local interpreter would silently accept.
+
 ---
 
 **M7 — Power Accuracy per-point overhead**

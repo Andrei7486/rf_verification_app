@@ -18,6 +18,7 @@ class RunSession:
         self.points = []; self.idx = -1; self.results = []; self.summary = None
         self.mod = None; self.cxa = None; self.rlog = None; self._finalized = False
         self.worker = None
+        self._config_version = 0  # M6: set for real in start(), read again at finalize
         self.stop_event = threading.Event(); self.resume_event = threading.Event()
         self.paused = False; self.pause_msg = ""; self.error = None
     def is_active(self):
@@ -76,7 +77,12 @@ class RunSession:
                 raise SessionError("No points to run (empty frequency/level list).")
             log_dir = config_store.resolve_log_dir(self.cfg)
             self.rlog = RunLogger(log_dir, check_key, unit)
-            self.rlog.log_header(self.check.title, unit, mode, self._params_snapshot(params))
+            # M6: drift vs the shipped reference, logged before anything else so it
+            # is the first thing an operator reading the log sees if a bench key
+            # went missing or changed since the last release.
+            diff, self._config_version = config_store.compute_config_diff()
+            self.rlog.log_header(self.check.title, unit, mode, self._params_snapshot(params),
+                                 diff, self._config_version)
             try:
                 self.cxa = Analyzer(self.cfg["analyzer"], self.rlog.logger)
                 self.cxa.connect()
@@ -199,7 +205,8 @@ class RunSession:
             rows = self._rows()
             if self.rlog:
                 self.rlog.logger.info("Verdict: %s", self.summary.get("verdict"))
-                self.rlog.write_results(self.check.csv_columns, rows, self.summary)
+                self.rlog.write_results(self.check.csv_columns, rows, self.summary,
+                                        self._config_version)
             self._teardown_devices()
             if self.rlog:
                 self.rlog.close()

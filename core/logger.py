@@ -47,7 +47,7 @@ class RunLogger:
         lh = _LiveHandler(); lh.setLevel(logging.INFO); lh.setFormatter(fmt)
         self.logger.addHandler(lh)
         self._handlers = [fh, ch, lh]
-    def log_header(self, check_title, unit, mode, params):
+    def log_header(self, check_title, unit, mode, params, drift=None, config_version=None):
         self.logger.info("=" * 70)
         self.logger.info("RF Verification run: %s", check_title)
         self.logger.info("Unit: %s   Mode: %s", unit, mode)
@@ -55,16 +55,32 @@ class RunLogger:
         self.logger.info("Parameters used for this run:")
         for key in sorted(params):
             self.logger.info("    %-22s = %s", key, params[key])
+        self._log_drift(drift, config_version)
         self.logger.info("=" * 70)
-    def write_results(self, columns, rows, summary):
+    def _log_drift(self, drift, config_version):
+        """M6: one line per key that differs from config.defaults.json - missing
+        (falls back to the shipped default), unknown (on disk, not in defaults) or
+        changed (both present, different values). '(none)' when nothing differs -
+        the operator should not have to infer a clean run from an absent section.
+        """
+        self.logger.info("-" * 70)
+        self.logger.info("Config drift vs repo defaults (version %s):", config_version)
+        if not drift:
+            self.logger.info("    (none)")
+            return
+        for entry in drift:
+            self.logger.info("    %s.%s: %s  (live=%r default=%r)", entry["section"],
+                             entry["key"], entry["status"], entry["live"], entry["default"])
+    def write_results(self, columns, rows, summary, config_version=None):
         with open(self.csv_path, "w", newline="", encoding="utf-8") as fh:
+            fh.write("# config_version: %s\n" % config_version)
             writer = csv.DictWriter(fh, fieldnames=columns)
             writer.writeheader()
             for row in rows:
                 writer.writerow({c: row.get(c, "") for c in columns})
         with open(self.json_path, "w", encoding="utf-8") as fh:
-            json.dump({"columns": columns, "rows": rows, "summary": summary},
-                      fh, indent=2, ensure_ascii=False)
+            json.dump({"config_version": config_version, "columns": columns, "rows": rows,
+                      "summary": summary}, fh, indent=2, ensure_ascii=False)
         self.logger.info("Results written: %s", os.path.basename(self.csv_path))
     def close(self):
         for handler in self._handlers:

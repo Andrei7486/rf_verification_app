@@ -204,14 +204,19 @@ class PowerAccuracyCheck:
         of which subset of frequencies get tested in one session.
         """
         if_max = float(pa.get("if_max_mhz", 180))
+        # M6: if_atten_db/lband_atten_db are real schema keys (present in
+        # config.defaults.json) - cfg is always merged against it, so these read the
+        # shipped default when absent on disk, never a silent 0 (unlike the
+        # interpolation start/stop keys below, which are genuinely optional
+        # fine-tuning with no entry in the schema at all).
         if freq_mhz <= if_max:
-            flat = float(pa.get("if_atten_db", 0))
+            flat = float(pa["if_atten_db"])
             return self._interp(freq_mhz,
                                 float(pa.get("if_atten_start_mhz", 50.0)),
                                 float(pa.get("if_atten_stop_mhz", if_max)),
                                 float(pa.get("if_atten_start_db", flat)),
                                 float(pa.get("if_atten_stop_db", flat)))
-        flat = float(pa.get("lband_atten_db", 0))
+        flat = float(pa["lband_atten_db"])
         return self._interp(freq_mhz,
                             float(pa.get("lband_atten_start_mhz", 950.0)),
                             float(pa.get("lband_atten_stop_mhz", 2150.0)),

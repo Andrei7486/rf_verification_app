@@ -10,7 +10,7 @@ modules and in checks/base.py.
 import re
 import time
 
-from .transport import LineSocket, TransportError
+from .transport import LineSocket
 
 # Prompt fragments seen on the NS CLI. We match on any of these to know a line was
 # accepted; matching is best-effort because the exact prompt depends on the menu level.
