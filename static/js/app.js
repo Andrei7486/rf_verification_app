@@ -76,37 +76,67 @@ async function startRun() {
     freqs = checkedFreqs();
     if (!freqs.length) { $("setupErr").textContent = "Select at least one frequency."; return; }
   }
+  // U2: the UI switches to "running" state synchronously, before the network call that
+  // triggers instrument I/O even fires - status/indicator/log therefore change within
+  // the same tick as the click, not after the multi-second connect+setup sequence.
+  enterStartingUi(mode === "auto");
   try {
     const info = await postJSON("/api/run/start", { check, unit, mode, freqs, params: {} });
-    RUN = info; enterRunUi(info);
-  } catch (e) { $("setupErr").textContent = e.message; }
+    RUN = info; finishEnteringRunUi(info);
+  } catch (e) { exitStartingUi(e.message); }
 }
-function enterRunUi(info) {
+function enterStartingUi(auto) {
+  // Locks the Start button immediately - a second click during the connect window (the
+  // gap this stage exists to close) hits a disabled button and does nothing; the
+  // disabled/dimmed state itself is the "and says so" the U2 acceptance test asks for.
+  $("startBtn").disabled = true;
   $("setupPanel").classList.add("hidden");
   $("runPanel").classList.remove("hidden");
   $("resultsPanel").classList.remove("hidden");
-  $("runTitle").textContent = info.title + "  \u2014  " + info.unit;
+  $("runTitle").textContent = "Starting \u2026";
+  $("pointReadout").innerHTML = "";
   $("verdictBox").innerHTML = ""; $("filesHint").textContent = "";
   $("logView").textContent = ""; LOG_SEQ = 0;
   MANUAL_ROWS = [];
-  renderFails(info.columns, [], LIVE_FAILS, "FAIL: ", false);
-  renderFails(info.columns, [], REPORT_FAILS, "FAILING POINTS: ", false);
-  const head = $("resHead"); head.innerHTML = "";
-  info.columns.forEach((c) => { const th = document.createElement("th"); th.textContent = c; head.appendChild(th); });
-  $("resBody").innerHTML = "";
-  const auto = info.mode === "auto";
+  renderFails([], [], LIVE_FAILS, "FAIL: ", false);
+  renderFails([], [], REPORT_FAILS, "FAILING POINTS: ", false);
+  $("cableBox").classList.add("hidden");
+  $("resHead").innerHTML = ""; $("resBody").innerHTML = "";
   $("manualBtns").classList.toggle("hidden", auto);
   $("manualInputs").classList.toggle("hidden", auto);
-  if (auto) {
+  // Nothing in manual mode is valid to click yet - there is no point loaded, no run
+  // confirmed active server-side. Stop is disabled too: a click here would otherwise hit
+  // "No run in progress" (session.py sets active=True only once setup finishes).
+  ["stopBtn", "measureBtn", "nextBtn", "skipBtn"].forEach((id) => { $(id).disabled = true; });
+  $("modeHint").textContent = "Connecting to the analyzer and modulator \u2026";
+  $("runErr").textContent = "";
+  // Log lines the server writes during connect/setup land in the same live-log buffer
+  // /api/run/logs reads from - polling from here (not after the start call resolves)
+  // is what makes them "appear immediately" without needing full U3 streaming.
+  startLogPolling();
+}
+function finishEnteringRunUi(info) {
+  $("runTitle").textContent = info.title + "  \u2014  " + info.unit;
+  const head = $("resHead"); head.innerHTML = "";
+  info.columns.forEach((c) => { const th = document.createElement("th"); th.textContent = c; head.appendChild(th); });
+  $("stopBtn").disabled = false;
+  if (info.mode === "auto") {
     $("modeHint").textContent = "Auto mode: the run proceeds by itself. Watch the log below.";
     renderProgress(0, info.point ? info.point.total : 0);
     startPolling();
   } else {
     buildManualInputs(info); renderPoint(info.point);
-    $("nextBtn").disabled = true;
+    $("measureBtn").disabled = false; $("nextBtn").disabled = true; $("skipBtn").disabled = false;
     $("modeHint").textContent = "Manual mode: read the value(s) on the CXA, type them, Measure.";
-    startLogPolling();
   }
+}
+function exitStartingUi(message) {
+  stopPolling();
+  $("runPanel").classList.add("hidden");
+  $("resultsPanel").classList.add("hidden");
+  $("setupPanel").classList.remove("hidden");
+  $("startBtn").disabled = false;
+  $("setupErr").textContent = message;
 }
 function buildManualInputs(info) {
   const box = $("manualInputs"); box.innerHTML = "";
@@ -254,6 +284,7 @@ function newRun() {
   $("failBox").classList.add("hidden"); $("failReport").classList.add("hidden");
   $("resultsPanel").classList.add("hidden");
   $("setupPanel").classList.remove("hidden");
+  $("startBtn").disabled = false;
   $("setupErr").textContent = "";
 }
 window.addEventListener("DOMContentLoaded", () => {
