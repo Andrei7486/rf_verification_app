@@ -362,3 +362,72 @@ pre-existing, not part of this stage's scope — noted, not corrected.
 matching defaults entry will show as `unknown` forever until someone adds it there too — a
 deliberate visible nudge, not an enforced check. `_config_version` bumps are also manual. Full
 rationale in ADR 0002.
+
+PR #19 reviewed and merged. Live CI ran green on both the `push` and `pull_request` events
+(`ruff check .` + the offline test suite), confirmed via the GitHub Actions API before reporting
+the stage done. `master` fast-forwarded; branch `stage/s1-config-integrity-drift` deleted, local
+and `origin`.
+
+---
+
+## 2026-09-08 — S2: immediate response after Start Run
+
+**Context.** Spec §U2, next in the ordering after S1. `startRun()` (`static/js/app.js`) `await`ed
+the full `/api/run/start` round-trip — server-side `SESSION.start()` connects to the CXA, connects
+to the modulator, and runs the whole `modulator_setup()`/`analyzer_setup()` sequence (real seconds
+of wall-clock time) — before the UI changed at all. Exactly the problem spec §U2 names: "the test
+is already running in the terminal while the UI still looks idle."
+
+**Design note worth recording.** The server already writes every log line into the same
+process-wide live-log ring buffer (`core/logger.py`'s `_LIVE` deque) that `/api/run/logs` reads
+from, and does so *during* `SESSION.start()`'s connect/setup sequence — well before the HTTP
+response for `/api/run/start` returns. This meant "the first log lines appear immediately" (one of
+§U2's four bullets) was achievable without building any of U3's real-time streaming — just by
+having the client start polling `/api/run/logs` *before* the start call resolves, not after.
+Verified this directly, without touching hardware: a synthetic `RunLogger` sequence with small
+delays standing in for real instrument I/O, polled concurrently by a second thread — confirmed
+`live_tail()` surfaces each line as it's written, mid-sequence, not only after the sequence ends.
+
+**Plan reviewed before implementation.** One structural choice: transition immediately into a
+stripped "Starting …" run panel with the log visible (delivers all four §U2 bullets, including the
+live log during connect) vs. a lighter inline indicator left on the setup panel (simpler, but
+doesn't surface log lines during connect at all, since the log view lives inside the run panel).
+**Operator: transition immediately (recommended option).**
+
+**Done.**
+- `static/js/app.js` only. `startRun()` now calls a new `enterStartingUi(auto)` synchronously,
+  before firing the `/api/run/start` request — disables `startBtn`, hides the setup panel, shows
+  the run panel in a "Starting …" state (log cleared, `stopBtn`/`measureBtn`/`nextBtn`/`skipBtn`
+  disabled — a click on `Stop` during the connect window would otherwise hit `session.py`'s "No
+  run in progress", since `active` isn't set `True` until setup finishes), and starts log polling.
+- New `finishEnteringRunUi(info)` — runs once the start call resolves, does what the old
+  `enterRunUi(info)` used to do minus the parts already handled immediately: fills in the real
+  title/columns, re-enables the mode-appropriate buttons, switches auto mode from log-only polling
+  to the full status-polling loop.
+- New `exitStartingUi(message)` — the error path: stops polling, reverts to the setup panel,
+  re-enables `startBtn`, shows the error. Symmetric with the old behavior, just reached via a
+  different route.
+- Bug caught while writing this: neither old code nor a naive port ever re-enabled `startBtn`
+  after a *successful* start — it would have stayed disabled forever once a run finished, since
+  nothing set it back. Fixed by re-enabling it in `newRun()`, the only path back to the setup
+  panel after a completed/stopped run.
+- "A second click … says so" (§U2 acceptance): read as the disabled/dimmed button state itself
+  being the signal, matching this app's existing pattern (`nextBtn` in manual mode) rather than a
+  separate toast/message. Not re-confirmed with the operator before implementing — flagged in the
+  spec note; revisit if a more explicit signal is wanted.
+- `session.py`/`app.py`'s `/api/run/start` route: **untouched**. No SCPI/DUT sequencing, timing,
+  or reordering — pure R0.
+
+**Not done — recorded, not silently skipped.** `DEVELOPMENT_RULES.md` §11.2 asks for
+screenshot-based before/after review on UI stages. No browser automation tool is available in
+this environment (no `chromium-cli`, no local Playwright install) and installing one is a
+nontrivial side task nobody asked for. Verified instead by full code-path tracing (traced both the
+success and error flows by hand) plus the hardware-free live-log-buffer check above, and by
+`node --check` for JS syntax. No JS test infrastructure exists in this repo (no Jest/jsdom) to
+write an automated test against either — this is consistent with how every other JS-only change in
+this repo has been verified so far, not a gap introduced by this stage.
+
+**Open.** Actual visual confirmation (does it *look* right, does 200 ms actually feel instant) is
+the operator's job at the bench, same as every R0 stage's Release Smoke Test. If a real
+screenshot-based UI review loop is wanted for future UI stages (S3–S13 are mostly `U`-track), it
+would need Playwright or an equivalent installed in this environment first.

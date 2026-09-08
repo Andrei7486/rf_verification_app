@@ -374,6 +374,19 @@ Today the test is already running in the terminal while the UI still looks idle.
 **Acceptance:** status and indicator change within 200 ms of the click; a second click while
 running has no effect and says so.
 
+**Implemented (S2, 2026-09-08).** `startRun()` (`static/js/app.js`) now switches the UI into a
+"Starting …" state synchronously, before the `/api/run/start` network call fires — Start button
+disabled, setup panel hidden, run panel shown, log polling begun. Server-side `SESSION.start()`
+(`core/session.py`) is untouched — no SCPI/DUT command added, removed, reordered or retimed,
+consistent with R0. "First log lines appear immediately": the server already writes log lines
+into the same live-log ring buffer `/api/run/logs` reads from *during* `SESSION.start()`'s connect
+and setup sequence, before the HTTP response returns — starting the client's log poll immediately
+(not after the start call resolves) is what surfaces them without needing U3's real-time
+streaming. Verified against the underlying buffer directly (no hardware, no browser — see
+`docs/JOURNAL.md` 2026-09-08 for what a full screenshot-based before/after would need). "A second
+click … says so": the disabled/dimmed Start button is the visible signal — no separate toast, per
+the app's existing pattern (e.g. the `Next` button in manual mode).
+
 ---
 
 **U3 — Real-time logs**

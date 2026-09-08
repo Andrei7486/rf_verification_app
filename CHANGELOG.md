@@ -21,6 +21,11 @@ bench acceptance that closed it.
   stamped with `config_version`. Two pre-existing `.get(key, 0)` fallbacks fixed
   (`flatness.py`/`power_accuracy.py`, attenuation keys). D16 (minimal CI — `ruff` + the offline
   test suite on push) folded in per the roadmap. See `docs/adr/0002-config-defaults-and-drift-detection.md`.
+- **S2 (U2): immediate response after Start Run, in review.** `static/js/app.js` only — the Start
+  button, running indicator and log view now update synchronously on click, before
+  `/api/run/start`'s network round-trip; log polling begins immediately, surfacing the connect/
+  setup sequence the server already writes to the live-log buffer during that call. No server-side
+  change — pure R0.
 
 ---
 
