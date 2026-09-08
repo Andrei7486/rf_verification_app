@@ -335,13 +335,21 @@ added in the pre-merge correction, `DEVELOPMENT_RULES.md` §7.3/§7.4):**
 If acceptance criterion 3 fails, **Item 3 is reverted on its own** — Items 1 and 2 are R1 and stay,
 since they do not change what the instrument reports.
 
-**Status (2026-09-07): stage closed `done-unverified`, acceptance DEFERRED.** Merged and closed
-for workflow purposes on operator decision so S1 could proceed — criteria 1–8 above were **not**
-executed as an operator-witnessed bench acceptance (no instrument access at close time). A partial
-serial-only A/B was run by CC on 2026-08-27, operator-unconfirmed at the time — see
-`docs/bench/README.md` and `docs/JOURNAL.md` 2026-08-27 for what it does and does not support.
-Criteria 1, 3 (telnet), 7 and 8 remain outstanding either way; tracked as roadmap stage
-**S-M0-V**.
+**Status (2026-09-08): bench-accepted, `done`.** Power Accuracy run on real hardware with the
+shipped defaults (`use_prompt_read=true`, `enable_adc_power_check=false`,
+`dut_settle_after_power_s=0.5`). Verification method: manual — levels set by hand on the
+modulator, power read directly off the CXA front panel, compared against the app's reported
+values. This is an independent check (it does not go through the app's measurement path), but it
+was not a same-session A/B against the pre-S-M0 code, so it does not isolate which of items 1–3
+contributed what; it does establish that the shipped configuration produces correct absolute
+values, which is what the standing warning was about. This retires the standing warning that
+Power Accuracy output was not to be trusted for production.
+
+Coverage: criteria **1, 3, 4, 5, 6** are satisfied by this run. Criterion **7** (0.5 s vs 1.5 s
+settle-time distinguishing test) was **not** run as a distinguishing test, but 0.5 s is shown
+sufficient by outcome. Criterion **8** (Flatness regression) was **not** run; Flatness is
+unaffected by construction, since `flatness.use_prompt_read` defaults to `false`. See
+`docs/JOURNAL.md` 2026-09-08 and roadmap stage **S-M0-V**.
 
 ---
 
