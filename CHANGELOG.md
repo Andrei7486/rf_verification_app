@@ -26,6 +26,10 @@ bench acceptance that closed it.
   `/api/run/start`'s network round-trip; log polling begins immediately, surfacing the connect/
   setup sequence the server already writes to the live-log buffer during that call. No server-side
   change — pure R0.
+- **S3 (U3): real-time logs, in review.** New `GET /api/run/logs/stream` (Server-Sent Events, D6)
+  — lines appear within ~200 ms instead of up to 1 s. The pre-existing polling endpoint is
+  unchanged and now serves as D6's mandated fallback. `core/session.py` untouched — pure R0. See
+  `docs/adr/0003-sse-live-log-stream.md`.
 
 ---
 

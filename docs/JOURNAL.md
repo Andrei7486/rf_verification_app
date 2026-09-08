@@ -431,3 +431,61 @@ this repo has been verified so far, not a gap introduced by this stage.
 the operator's job at the bench, same as every R0 stage's Release Smoke Test. If a real
 screenshot-based UI review loop is wanted for future UI stages (S3–S13 are mostly `U`-track), it
 would need Playwright or an equivalent installed in this environment first.
+
+PR #20 merged directly by the operator. `master` fast-forwarded; branch
+`stage/s2-immediate-run-feedback` deleted, local and `origin`.
+
+---
+
+## 2026-09-08 — S3: real-time logs
+
+**Context.** Spec §U3, next in the ordering. D6 (live-log transport) was already accepted before
+this stage opened: "SSE from Flask 2.3.3 with a polling fallback; no new dependencies" — no new
+decision needed, this stage is that implementation.
+
+**Done.**
+- `core/logger.py`: new `stream_live(after_seq, poll_interval=0.2)` generator — SSE-formatted
+  events (`id: N\ndata: <json>\n\n`) for new live-log lines, polling the same `live_tail()` buffer
+  the existing polling endpoint reads, at a fifth of the old 1 s client interval. Per-line `id` is
+  reconstructed from the batch (`_LIVE_SEQ` increments by exactly 1 per append, verified, no gaps
+  possible) rather than changing `live_tail()`'s return shape, which other callers already depend
+  on.
+- `app.py`: new `GET /api/run/logs/stream` route, thin — wires SSE HTTP framing around the
+  generator. `Last-Event-ID` (sent automatically by the browser on `EventSource` reconnect) takes
+  priority over `?since=`.
+- `static/js/app.js`: `startLogStream()` opens an `EventSource`; falls back to the pre-existing
+  `pollLogs()`/1 s-interval mechanism (renamed `startLogPollFallback()`, otherwise unchanged — D6's
+  mandated fallback) only when `EventSource` doesn't exist at all, or its connection reaches
+  `readyState === CLOSED` (genuinely given up — a transient drop is left to the browser's own
+  native reconnect, which self-heals via `Last-Event-ID` without any code here needing to act).
+  Status polling (`pollOnce()`, auto mode) and log streaming are now fully independent — before
+  this stage they shared one interval/variable in auto mode, so log delivery was implicitly capped
+  at the 1 s status-poll cadence even though manual mode already streamed logs on their own.
+- Design record: `docs/adr/0003-sse-live-log-stream.md`.
+- `core/session.py`: **untouched**. This stage only changes how already-written log lines reach
+  the browser, not what gets logged or when — R0 holds.
+
+**Verification — what could and couldn't be done in this environment.** `node --check` (JS syntax),
+`python -m py_compile` (server), offline test suite (24/24, unaffected — no Python logic this stage
+touches has offline tests, it's pure I/O plumbing), `ruff check .` clean. The interesting claim —
+does the actual SSE route work end-to-end — was verified genuinely, not assumed: an isolated
+`app.py` instance on a spare port (5099, never the operator's live one on 5000) responded 404 to
+`GET /api/run/logs/stream` initially only because the *running* process on port 5000 predates this
+code change (expected, not a bug); a fresh isolated instance confirmed the route is registered
+(`app.url_map`). Actually opening the streaming connection over a real socket hung every time
+(`curl` timeout, no data, not even a request logged server-side) — this reads as this environment's
+sandboxed shell blocking long-lived/streaming connections outright, not a defect in the route:
+confirmed by testing the exact same route through **Flask's in-process `test_client()`**, which
+bypasses the socket layer entirely — correct `200`/`text/event-stream`, correct SSE framing,
+correct content and ordering for a synthetic 3-line sequence, and correct resume behavior for both
+`?since=N` and a `Last-Event-ID` header. No hardware was touched at any point — the operator's real
+running instance (port 5000, possibly mid-session) was left alone throughout; the isolated test
+instance was killed and its scratch files removed afterward.
+
+**Not done.** No live browser check of the actual visual streaming behavior — same limitation and
+same reasoning as S2 (no browser automation available in this environment). The operator's Release
+Smoke Test is where this gets a real look.
+
+**Open.** §9's existing "unbounded live-log buffer in the browser" item (already attributed to U3)
+is unchanged by this stage — `appendLogLine()`'s accumulation pattern is the same regardless of
+which transport feeds it. No new deferred-portability entry needed.
