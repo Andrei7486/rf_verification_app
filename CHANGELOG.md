@@ -35,8 +35,8 @@ bench acceptance that closed it.
 
 ## v0.7.0 — 2026-09-07 — S-M0: Power Accuracy per-point overhead
 
-**NOT BENCH-VERIFIED. Acceptance criteria 1-8 were not executed; no instrument access at release
-time.**
+**Bench-accepted 2026-09-08 (manual verification against the CXA). Criteria 7 (settle-time
+distinguishing test) and 8 (Flatness regression) were not executed.**
 
 Cuts Power Accuracy's modulator-side per-point overhead (measured ~13.4 s/point, dominated by a
 flat ~1.4 s/command fixed wait) via three items, gated per config key with safe defaults:
