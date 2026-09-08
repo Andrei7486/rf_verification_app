@@ -489,3 +489,27 @@ Smoke Test is where this gets a real look.
 **Open.** §9's existing "unbounded live-log buffer in the browser" item (already attributed to U3)
 is unchanged by this stage — `appendLogLine()`'s accumulation pattern is the same regardless of
 which transport feeds it. No new deferred-portability entry needed.
+
+---
+
+## 2026-09-08 — S-M0 bench-accepted
+
+Power Accuracy run on real hardware with the shipped defaults (`use_prompt_read=true`,
+`enable_adc_power_check=false`, `dut_settle_after_power_s=0.5`). Run completed, run time acceptable
+to the operator, no discrepancies found.
+
+**Verification method: manual.** Levels set by hand on the modulator, power read directly off the
+CXA front panel, compared against the app's reported values. This is an independent check — it
+does not go through the app's measurement path — but it was not a same-session A/B against the
+pre-S-M0 code, so it does not isolate which of items 1–3 contributed what. It does establish that
+the shipped configuration produces correct absolute values, which is what the standing warning was
+about.
+
+This retires the standing warning that Power Accuracy output was not to be trusted for production.
+
+**Coverage against the original criteria 1–8:** criteria 1, 3, 4, 5, 6 are satisfied by this run.
+Criterion 7 (0.5 s vs 1.5 s settle-time distinguishing test) was not run as a distinguishing test,
+but 0.5 s is shown sufficient by outcome. Criterion 8 (Flatness regression) was not run; Flatness
+is unaffected by construction, since `flatness.use_prompt_read` defaults to `false`.
+
+Operator did not archive per-point logs for this run.
