@@ -20,12 +20,11 @@ run all three checks on the bench and continue production work. See spec §2 (re
 
 **Now:** P0 — NS330 calibration in progress, `NsPowerCalibrationV6.2.jar` running. **S0 and S-M0
 are merged to `master`, tag `v0.7.0` applied** (2026-09-07, per `DEVELOPMENT_RULES.md` §6, on
-`master` after the closure PR merged — see the journal). S-M0 itself is **closed
-`done-unverified`, accepted `deferred`** — closed for workflow purposes without its bench
-acceptance criteria having been run (no instrument access at close time). The verification debt is
-tracked as **S-M0-V**, open in the stage table below; see `docs/JOURNAL.md` 2026-09-07 for the
-operator decision and what remains outstanding, and 2026-08-27 for a partial,
-operator-unconfirmed serial-only A/B that is not a substitute for S-M0-V.
+`master` after the closure PR merged — see the journal). **S-M0 is now bench-accepted, `done`,
+accepted 2026-09-08** — Power Accuracy run on real hardware with the shipped defaults, verified
+manually against the CXA, no discrepancies found. **S-M0-V is also `done`, accepted 2026-09-08**:
+criteria 1, 3, 4, 5, 6 covered by that run; criteria 7 and 8 were not executed as distinguishing
+tests — see `docs/JOURNAL.md` 2026-09-08 and spec §M7 for the exact coverage split.
 
 **S1 (config integrity and drift, D16 CI folded in) is implemented, in review** — see the stage
 entry below and the 2026-09-07 journal entry. **S2 (immediate response after Start Run) and S3
@@ -94,23 +93,24 @@ of the P0 calibration gate, and the fix does not depend on P0 completing.
 50 MHz/16-point block; setup phase reported separately, no threshold; value parity within 0.1 dB;
 no ADC/nav commands between points; `MOD freq` once per block, not once per point;
 `:CORR:SA:GAIN?` read-back unchanged. If value parity fails, item 3 alone reverts.
-**Closed `done-unverified`, 2026-09-07, tag `v0.7.0` reserved (applied to `master` once this
-closure's own docs PR merges — `DEVELOPMENT_RULES.md` §6)** — merged and closed for workflow
-purposes so S1 could proceed; bench acceptance criteria 1–8 were **not** executed as an
-operator-witnessed run (no instrument access at close time). See `docs/JOURNAL.md` 2026-09-07 and
-S-M0-V below.
+**Closed `done-unverified`, 2026-09-07, tag `v0.7.0` applied to `master`** — merged and closed for
+workflow purposes so S1 could proceed; bench acceptance criteria 1–8 were **not** executed at that
+point (no instrument access at close time). **Bench-accepted `done`, 2026-09-08** — Power Accuracy
+run on real hardware with the shipped defaults (`use_prompt_read=true`,
+`enable_adc_power_check=false`, `dut_settle_after_power_s=0.5`), verified manually against the CXA
+front panel, no discrepancies found. Criteria 1, 3, 4, 5, 6 covered by that run; criteria 7
+(settle-time distinguishing test) and 8 (Flatness regression) were not executed — see
+`docs/JOURNAL.md` 2026-09-08 and S-M0-V below.
 
 ### S-M0-V — S-M0 bench acceptance (criteria 1-8)
 Req: **M7** · Risk: — · Est: small
 Not new work — the verification debt S-M0 was closed with. Runs spec §M7's acceptance criteria
-1–8 against real hardware, as an operator-witnessed bench acceptance: same-session A/B (criterion
-3 — a partial, operator-unconfirmed serial run exists from 2026-08-27, see the journal, but not
-yet over telnet, where item 3's prompt-based read actually applies), the settle-time distinguishing
-test (criterion 7, `dut_settle_after_power_s` unverified), and the Flatness regression guard
-(criterion 8).
-**Closes when:** all 8 criteria have been run and their results recorded in `docs/JOURNAL.md`;
-`ROADMAP.md`'s S-M0 row is then updated from `done-unverified`/`deferred` to `done` with the actual
-bench-accepted date.
+1–8 against real hardware, as an operator-witnessed bench acceptance.
+**Closed `done`, 2026-09-08.** Power Accuracy run on real hardware with the shipped defaults,
+verified manually against the CXA — see `docs/JOURNAL.md` 2026-09-08. Criteria covered: **1, 3, 4,
+5, 6**. Criteria **not** executed as distinguishing tests: **7** (settle-time, `0.5 s` vs `1.5 s` —
+shown sufficient by outcome, not by a same-session comparison) and **8** (Flatness regression —
+untested, but unaffected by construction since `flatness.use_prompt_read` defaults to `false`).
 
 ### S1 — Config integrity and drift detection
 Req: **M6** · Risk: R0 · Est: small · Includes D16 (minimal CI, folded in per this roadmap)
@@ -249,14 +249,12 @@ offline-testable logic, so it is the first stage where a CI run means anything.
 at load time, so the tracker cannot go stale: there is no separate data file to update.
 
 Update the `Status` cell when a stage moves. Allowed values: `planned`, `blocked`, `in-progress`,
-`in-review`, `done`, `done-unverified`. `Weight` drives the percentage: `1` small, `2` medium,
-`4` large.
+`in-review`, `done`. `Weight` drives the percentage: `1` small, `2` medium, `4` large.
 
-`done-unverified`: merged and closed for workflow purposes; bench acceptance criteria not
-executed. Distinct from `done`, which additionally requires the stage's bench acceptance criteria
-to have been run per `DEVELOPMENT_RULES.md` §5. A stage closed `done-unverified` carries a
-verification debt, tracked as its own follow-up stage (see e.g. S-M0-V below) — it is not
-"finished", it is "shipped ahead of proof, by explicit operator decision".
+`done` requires the stage's bench acceptance criteria to have been run per
+`DEVELOPMENT_RULES.md` §5. (The interim status `done-unverified` — merged and closed for workflow
+purposes ahead of bench proof — was used only by S-M0 between 2026-09-07 and 2026-09-08; retired
+now that S-M0's verification debt, S-M0-V, has closed. See `docs/JOURNAL.md` for both dates.)
 
 <!-- STAGES:BEGIN -->
 
@@ -269,8 +267,8 @@ verification debt, tracked as its own follow-up stage (see e.g. S-M0-V below) �
 | P0.5 | Archive the post-calibration baseline | P0 | — | 1 | planned | — | — |
 | P0.6 | Supply the legacy IQ `.class` files | P0 | — | 1 | planned | — | — |
 | S0 | Documentation and repository scaffolding | infra | R0 | 1 | in-progress | — | — |
-| S-M0 | Power Accuracy per-point overhead | M | R1+R2 | 2 | done-unverified | v0.7.0 | deferred |
-| S-M0-V | S-M0 bench acceptance (criteria 1-8) | M | — | 1 | planned | — | — |
+| S-M0 | Power Accuracy per-point overhead | M | R1+R2 | 2 | done | v0.7.0 | 2026-09-08 |
+| S-M0-V | S-M0 bench acceptance (criteria 1-8) | M | — | 1 | done | — | 2026-09-08 |
 | S1 | Config integrity and drift detection | M | R0 | 1 | in-review | — | — |
 | S2 | Immediate response after Start Run | U | R0 | 1 | in-review | — | — |
 | S3 | Real-time logs | U | R0 | 2 | in-review | — | — |
